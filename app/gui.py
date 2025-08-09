@@ -202,7 +202,12 @@ class ImageProcessorApp:
         thread.start()
 
     def process_image(self, variant):
-        self.root.after(0, self.process_flownet, variant)
+        if variant == 1:
+            # Variant 1 is the DL model
+            self.root.after(0, self.process_flownet, variant)
+        else:
+            # Variant 2 is the CFD model
+            pass
 
     def process_flownet(self, variant):
         if not self.input_image:
@@ -231,15 +236,9 @@ class ImageProcessorApp:
                 raise ValueError("Brightness out of range (1-3).")
             '''
 
-            # Apply brightness and contrast adjustments to create the processed image
-            if variant == 1:
-                self.output_image_1 = flownet_pred
-                self.display_image(self.output_image_1, self.output_canvas_1)
-            elif variant == 2:
-                enhanced_image = ImageEnhance.Brightness(self.input_image).enhance(1 / brightness)
-                self.output_image_2 = ImageEnhance.Contrast(enhanced_image).enhance(contrast)
-                self.display_image(self.output_image_2, self.output_canvas_2)
-
+            self.output_image_1 = flownet_pred
+            # DL model is image 1 for canvas 1
+            self.display_image(self.output_image_1, self.output_canvas_1)
 
         except ValueError as e:
             self.queue.put(f'Error occured:\n{e}\n')
@@ -252,9 +251,11 @@ class ImageProcessorApp:
         self.root.after(100, self.process_queue)
 
     def save_image_1(self):
+        # Save DL model image
         self.save_image(self.output_image_1)
 
     def save_image_2(self):
+        # Save CFD model image
         self.save_image(self.output_image_2)
 
     def save_image(self, image):
