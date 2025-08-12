@@ -158,7 +158,7 @@ class ImageProcessorApp:
         self.process_button_2 = tk.Button(
                 self.output_frame_2, text='Run CFD Model', command=lambda:
                 self.run_in_thread(2),
-                state='disabled'
+                state='normal'
                 )
         self.process_button_2.pack(pady=5)
 
@@ -169,6 +169,28 @@ class ImageProcessorApp:
             self.output_frame_2, text="Save CFD Model image", command=self.save_image_2
         )
         self.save_button_2.pack(pady=5)
+
+        # Mesh size input
+        self.mesh_label = tk.Label(self.output_frame_2, text="Mesh Size:")
+        self.mesh_label.pack()
+        self.mesh_entry = tk.Entry(self.output_frame_2, width=10)
+        self.mesh_entry.insert(0, "50")  # Default mesh size
+        self.mesh_entry.pack()
+
+        # Reynolds number input
+        self.re_label = tk.Label(self.output_frame_2, text="Reynolds Number (1-10):")
+        self.re_label.pack()
+        self.re_entry = tk.Entry(self.output_frame_2, width=10)
+        self.re_entry.insert(0, "1")  # Default Reynolds number
+        self.re_entry.pack()
+
+        # Streamtrace seeds input
+        self.seeds_label = tk.Label(self.output_frame_2, text="Streamtrace Seeds (10-400):")
+        self.seeds_label.pack()
+        self.seeds_entry = tk.Entry(self.output_frame_2, width=10)
+        self.seeds_entry.insert(0, "25")  # Default seeds
+        self.seeds_entry.pack()
+
 
     def write(self, message):
         # Write to the message area
@@ -207,6 +229,7 @@ class ImageProcessorApp:
             self.root.after(0, self.process_flownet, variant)
         else:
             # Variant 2 is the CFD model
+            self.root.after(0, self.process_cfd_model, variant)
             pass
 
     def process_flownet(self, variant):
@@ -243,6 +266,35 @@ class ImageProcessorApp:
         except ValueError as e:
             self.queue.put(f'Error occured:\n{e}\n')
             #messagebox.showerror("Input Error", f"{e}")
+
+    def process_cfd_model(self, variant):
+        if not self.input_image:
+            messagebox.showerror("Error", "No input image loaded!")
+            return
+
+        try:
+            mesh_size = int(self.mesh_entry.get())
+            reynolds = float(self.re_entry.get())
+            seeds = int(self.seeds_entry.get())
+
+            if not (1 <= reynolds <= 10):
+                raise ValueError("Reynolds number must be between 1 and 10.")
+            if not (10 <= seeds <= 400):
+                raise ValueError("Streamtrace seeds must be between 10 and 400.")
+
+            # Send values to the display window
+            self.queue.put(f"Running CFD Model...\n")
+            self.queue.put(f"  Mesh Size: {mesh_size}\n")
+            self.queue.put(f"  Reynolds number set to: {reynolds}\n")
+            self.queue.put(f"  Streamtrace Seeds: {seeds}\n")
+
+            # If you have a CFD function to call, you'd do it here:
+            # result = run_cfd_model(self.input_image, mesh_size, reynolds, seeds)
+            # self.output_image_2 = result
+            # self.display_image(self.output_image_2, self.output_canvas_2)
+
+        except ValueError as e:
+            self.queue.put(f"Error in CFD input:\n{e}\n")
 
     def process_queue(self):
         while not self.queue.empty():
