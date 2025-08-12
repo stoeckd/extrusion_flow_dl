@@ -174,7 +174,7 @@ class ImageProcessorApp:
         self.mesh_label = tk.Label(self.output_frame_2, text="Mesh Size:")
         self.mesh_label.pack()
         self.mesh_entry = tk.Entry(self.output_frame_2, width=10)
-        self.mesh_entry.insert(0, "50")  # Default mesh size
+        self.mesh_entry.insert(0, "0.1")  # Default mesh size
         self.mesh_entry.pack()
 
         # Reynolds number input
@@ -190,7 +190,6 @@ class ImageProcessorApp:
         self.seeds_entry = tk.Entry(self.output_frame_2, width=10)
         self.seeds_entry.insert(0, "25")  # Default seeds
         self.seeds_entry.pack()
-
 
     def write(self, message):
         # Write to the message area
@@ -289,9 +288,9 @@ class ImageProcessorApp:
             self.queue.put(f"  Streamtrace Seeds: {seeds}\n")
 
             # If you have a CFD function to call, you'd do it here:
-            # result = run_cfd_model(self.input_image, mesh_size, reynolds, seeds)
-            # self.output_image_2 = result
-            # self.display_image(self.output_image_2, self.output_canvas_2)
+            result = run_cfd_model(self.input_image, mesh_size, reynolds, seeds)
+            self.output_image_2 = result
+            self.display_image(self.output_image_2, self.output_canvas_2)
 
         except ValueError as e:
             self.queue.put(f"Error in CFD input:\n{e}\n")
