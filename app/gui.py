@@ -180,7 +180,7 @@ class ImageProcessorApp:
     def flush(self):
         pass
 
-        def make_square_by_mirroring(self, im, tol_ratio = 0.02):
+    def make_square_by_mirroring(self, im, tol_ratio = 0.02):
         w, h = im.size
         if abs(w - h) <= tol_ratio * max(w, h):
             return im  # Already (nearly) square
