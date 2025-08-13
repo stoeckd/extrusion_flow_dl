@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk, ImageOps, ImageEnhance
 import numpy as np
+from ViscousFlowSolver import CFD_solver_and_streamtrace
 
 import multiprocessing
 import queue
@@ -136,7 +137,6 @@ class ImageProcessorApp:
                 command=lambda:self.run_in_thread(1)
                 )
         self.process_button_1.pack(pady=5)
-
 
         self.output_canvas_1 = tk.Canvas(self.output_frame_1, bg="gray", 
                                          width=nx, height=ny, highlightthickness=0)
@@ -272,9 +272,12 @@ class ImageProcessorApp:
             return
 
         try:
-            mesh_size = int(self.mesh_entry.get())
-            reynolds = float(self.re_entry.get())
-            seeds = int(self.seeds_entry.get())
+            mesh_size = float(self.mesh_entry.get())
+            Reynolds_number = int(self.re_entry.get())
+            num_seeds = int(self.seeds_entry.get())
+            inner_flow = float(self.flowrate_entry_left.get())
+            outer_flow = float(self.flowrate_entry_right.get())
+            flowrate_ratio = inner_flow / (inner_flow + outer_flow)  # Compute the ratio
 
             if not (1 <= reynolds <= 10):
                 raise ValueError("Reynolds number must be between 1 and 10.")
@@ -288,7 +291,7 @@ class ImageProcessorApp:
             self.queue.put(f"  Streamtrace Seeds: {seeds}\n")
 
             # If you have a CFD function to call, you'd do it here:
-            result = run_cfd_model(self.input_image, mesh_size, reynolds, seeds)
+            result = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
             self.output_image_2 = result
             self.display_image(self.output_image_2, self.output_canvas_2)
 
@@ -330,4 +333,3 @@ if __name__ == "__main__":
     root = tk.Tk()
     app = ImageProcessorApp(root)
     root.mainloop()
-
