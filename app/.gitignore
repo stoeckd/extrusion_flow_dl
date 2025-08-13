@@ -1,4 +1,6 @@
 *.keras
 *__pycache__
 .DS_Store
-
+*.msh
+*.xao
+*.geo*
