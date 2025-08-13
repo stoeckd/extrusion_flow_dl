@@ -180,10 +180,32 @@ class ImageProcessorApp:
     def flush(self):
         pass
 
+        def make_square_by_mirroring(self, im, tol_ratio = 0.02):
+        w, h = im.size
+        if abs(w - h) <= tol_ratio * max(w, h):
+            return im  # Already (nearly) square
+
+        if h > w:
+            # Taller than wide → mirror horizontally, append to right
+            mirrored = im.transpose(Image.FLIP_LEFT_RIGHT)
+            new_im = Image.new(im.mode, (w * 2, h))
+            new_im.paste(im, (0, 0))
+            new_im.paste(mirrored, (w, 0))
+            return new_im
+        else:
+            # Wider than tall → mirror vertically, append to bottom
+            mirrored = im.transpose(Image.FLIP_TOP_BOTTOM)
+            new_im = Image.new(im.mode, (w, h * 2))
+            new_im.paste(im, (0, 0))
+            new_im.paste(mirrored, (0, h))
+            return new_im
+
     def load_image(self):
         file_path = filedialog.askopenfilename(title="Select an Image File")
         if file_path:
-            self.input_image = Image.open(file_path)
+            img = Image.open(file_path)
+            img = self.make_square_by_mirroring(img, tol_ratio=0.02)
+            self.input_image = img
             self.display_image(self.input_image, self.input_canvas)
 
     def display_image(self, image, canvas):
