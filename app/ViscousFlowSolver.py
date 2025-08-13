@@ -51,7 +51,7 @@ def run_trace_save():
         import traceback
         traceback.print_exc()
 
-def CFD_solver_and_streamtrace(Reynolds_number, img_fname, channel_mesh_size, flow_ratio):
+def CFD_solver_and_streamtrace(Reynolds_number, img_fname, channel_mesh_size, flow_ratio, num_seeds):
     msh, uh, uvw_data, xyz_data, Re, img_fname, channel_mesh_size, V, Q, flow_ratio, u, p = solve_NS_flow(
             Reynolds_number, img_fname, channel_mesh_size, flow_ratio)
     rev_streamtrace_fig, inner_contour_fig, inner_contour_mesh_fig, seeds, final_output = for_and_rev_streamtrace(

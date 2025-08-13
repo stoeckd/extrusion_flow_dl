@@ -29,6 +29,7 @@ class ImageProcessorApp:
         self.root.title("Image Processor")
 
         self.queue = queue.Queue()
+        self.input_image_path = None  # Will store the image file path
 
 
         # Configure grid layout for four quadrants
@@ -204,6 +205,7 @@ class ImageProcessorApp:
     def load_image(self):
         file_path = filedialog.askopenfilename(title="Select an Image File")
         if file_path:
+            self.input_image_path = file_path  # ✅ Store path here
             self.input_image = Image.open(file_path)
             self.display_image(self.input_image, self.input_canvas)
 
@@ -279,19 +281,24 @@ class ImageProcessorApp:
             outer_flow = float(self.flowrate_entry_right.get())
             flowrate_ratio = inner_flow / (inner_flow + outer_flow)  # Compute the ratio
 
-            if not (1 <= reynolds <= 10):
+            if not (1 <= Reynolds_number <= 10):
                 raise ValueError("Reynolds number must be between 1 and 10.")
-            if not (10 <= seeds <= 400):
+            if not (10 <= num_seeds <= 400):
                 raise ValueError("Streamtrace seeds must be between 10 and 400.")
+            if not (0.001 <= mesh_size <= 0.1):
+                raise ValueError("Mesh size must be between 0.001 and 0.1.")
 
             # Send values to the display window
             self.queue.put(f"Running CFD Model...\n")
             self.queue.put(f"  Mesh Size: {mesh_size}\n")
-            self.queue.put(f"  Reynolds number set to: {reynolds}\n")
-            self.queue.put(f"  Streamtrace Seeds: {seeds}\n")
+            self.queue.put(f"  Reynolds number set to: {Reynolds_number}\n")
+            self.queue.put(f"  Streamtrace Seeds: {num_seeds}\n")
 
             # If you have a CFD function to call, you'd do it here:
+            img_fname = self.input_image_path  # ✅ Use stored image path
+            print(img_fname, flush=True)
             result = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
+
             self.output_image_2 = result
             self.display_image(self.output_image_2, self.output_canvas_2)
 
