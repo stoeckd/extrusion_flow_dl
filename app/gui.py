@@ -2,21 +2,53 @@
 
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from PIL import Image, ImageTk, ImageOps, ImageEnhance
+from PIL import Image, ImageTk
 import numpy as np
 
 import multiprocessing
 import queue
 import threading
-
+from concurrent.futures import ProcessPoolExecutor
 import sys
 import os
-# Suppress Tensorflow warnings
-#os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
-from run_flownet_fenicsx import (run_job_preload_model_preload_img, 
-                                 load_flownet_model,
-                                 process_image_channels)
+# Keep math/TF threads polite in the GUI proc (optional but nice)
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
+os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
+os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
+
+from run_flownet_fenicsx import (
+    load_flownet_model,
+    process_image_channels,           # (unused now; kept if you want it)
+    create_2ch_test_data_from_img,
+    convert_binary_to_color,
+    run_flownet_cpu_preload_model,
+    load_normalize_factor,
+)
+
+# --------------------------
+# FEM worker function (short-lived per run)
+# --------------------------
+def _fem_only_job(img_gray_np, flowrate_ratio, u_max):
+    # Kill MPICH async progress *before* any dolfinx/petsc imports
+    os.environ["MPICH_ASYNC_PROGRESS"] = "0"
+    os.environ["PETSC_MPICH_ASYNC_PROGRESS"] = "0"
+    os.environ.setdefault("OMP_NUM_THREADS", "1")
+    os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+    os.environ.setdefault("MKL_NUM_THREADS", "1")
+    os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
+    import run_flownet_fenicsx as api  # heavy stuff imported only in worker
+    inner_model, outer_model, inner_shape = api.image2gmshfromimg(img_gray_np)
+    flow_profile, inner_shape = api.solve_inlet_profiles(
+        inner_model, outer_model, inner_shape, flowrate_ratio, u_max
+    )
+    return flow_profile, inner_shape
+
 
 # Global variables for image sizes
 nx, ny = 300, 300
@@ -29,7 +61,6 @@ class ImageProcessorApp:
 
         self.queue = queue.Queue()
 
-
         # Configure grid layout for four quadrants
         self.root.rowconfigure([0, 1], weight=1, minsize=ny)
         self.root.columnconfigure([0, 1], weight=1, minsize=nx)
@@ -38,7 +69,7 @@ class ImageProcessorApp:
         self.control_frame = tk.Frame(root, relief='sunken', bd=2)
         self.control_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
 
-        self.control_label = tk.Label(self.control_frame, text="Controls", 
+        self.control_label = tk.Label(self.control_frame, text="Controls",
                                       font=("Arial", 12, 'bold'))
         self.control_label.grid(row=0, column=0, columnspan=4, pady=5, sticky="nsew")
 
@@ -47,57 +78,40 @@ class ImageProcessorApp:
         )
         self.load_button.grid(row=1, column=0, columnspan=4, pady=10)
 
-        '''
-        # Number Inputs for Brightness
-        self.brightness_label = tk.Label(self.control_frame, text="Brightness (1-3):")
-        self.brightness_label.grid(row=2, column=0, sticky="e", padx=5, pady=5)
-        self.brightness_entry = tk.Entry(self.control_frame, width=5)
-        self.brightness_entry.insert(0, "1.0")  # Default value
-        self.brightness_entry.grid(row=2, column=1, pady=5)
-        '''
-
         # Ratio Input for flowrates
         self.flowrate_label = tk.Label(self.control_frame, text="Flowrate Ratio:")
         self.flowrate_label.grid(row=3, column=0, sticky="e", padx=5, pady=5)
 
-        # Left text entry for ratio
         self.flowrate_entry_left = tk.Entry(self.control_frame, width=5)
-        self.flowrate_entry_left.insert(0, "1")  # Default left value
+        self.flowrate_entry_left.insert(0, "1")
         self.flowrate_entry_left.grid(row=3, column=1, sticky="e", pady=5)
 
-        # Colon label
         self.colon_label = tk.Label(self.control_frame, text=":")
-        #self.colon_label.grid(row=3, column=2, sticky="w", pady=5)
         self.colon_label.grid(row=3, column=2, pady=5)
 
-        # Right text entry for ratio
         self.flowrate_entry_right = tk.Entry(self.control_frame, width=5)
-        self.flowrate_entry_right.insert(0, "1")  # Default right value
+        self.flowrate_entry_right.insert(0, "1")
         self.flowrate_entry_right.grid(row=3, column=3, sticky="w", pady=5)
 
-        # Frame for Message Area with Scrollbar
+        # Message area
         self.message_frame = tk.Frame(self.control_frame)
-        self.message_frame.grid(row=5, column=0, columnspan=4, 
+        self.message_frame.grid(row=5, column=0, columnspan=4,
                                 pady=10, padx=5, sticky="nsew")
 
-        # Text Widget for Messages
-        self.message_area = tk.Text(self.message_frame, 
+        self.message_area = tk.Text(self.message_frame,
                                     height=15, width=40, state="disabled", wrap="word")
         self.message_area.pack(side="left", fill="both", expand=True)
 
-        # Scrollbar for Message Area
-        self.message_scrollbar = tk.Scrollbar(self.message_frame, 
+        self.message_scrollbar = tk.Scrollbar(self.message_frame,
                                               command=self.message_area.yview)
         self.message_scrollbar.pack(side="right", fill="y")
-
-        # Link scrollbar to text widget
         self.message_area.config(yscrollcommand=self.message_scrollbar.set)
 
-        # Redirect standard output to message area
+        # Redirect stdout/stderr to the message box (note: can add buffering if you want)
         sys.stdout = self
         sys.stderr = self
 
-        # Other Quadrants: Image Display and Save Buttons (unchanged)
+        # Other Quadrants
         self._create_image_display_areas()
 
         # Attributes to hold images
@@ -107,18 +121,20 @@ class ImageProcessorApp:
 
         self.root.after(100, self.process_queue)
 
+        # Load FlowNet once in GUI process
         self.flownet_model = load_flownet_model()
+        self.u_max = load_normalize_factor()
 
     def _create_image_display_areas(self):
         # Upper Right Quadrant: Loaded Image
         self.input_frame = tk.Frame(self.root, relief='sunken', bd=2)
         self.input_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
 
-        self.input_label = tk.Label(self.input_frame, text="Loaded Nozzle Geometry", 
+        self.input_label = tk.Label(self.input_frame, text="Loaded Nozzle Geometry",
                                     font=("Arial", 12, 'bold'))
         self.input_label.pack(pady=5)
 
-        self.input_canvas = tk.Canvas(self.input_frame, bg="gray", 
+        self.input_canvas = tk.Canvas(self.input_frame, bg="gray",
                                       width=nx, height=ny, highlightthickness=0)
         self.input_canvas.pack()
 
@@ -126,19 +142,17 @@ class ImageProcessorApp:
         self.output_frame_1 = tk.Frame(self.root, relief='sunken', bd=2)
         self.output_frame_1.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
 
-
         self.output_label_1 = tk.Label(self.output_frame_1, text="U-Net Prediction",
                                        font=("Arial", 12, 'bold'))
         self.output_label_1.pack(pady=5)
 
         self.process_button_1 = tk.Button(
-                self.output_frame_1, text='Run U-Net', 
-                command=lambda:self.run_in_thread(1)
-                )
+            self.output_frame_1, text='Run U-Net',
+            command=lambda: self.run_in_thread(1)
+        )
         self.process_button_1.pack(pady=5)
 
-
-        self.output_canvas_1 = tk.Canvas(self.output_frame_1, bg="gray", 
+        self.output_canvas_1 = tk.Canvas(self.output_frame_1, bg="gray",
                                          width=nx, height=ny, highlightthickness=0)
         self.output_canvas_1.pack()
 
@@ -147,22 +161,23 @@ class ImageProcessorApp:
         )
         self.save_button_1.pack(pady=5)
 
-        # Lower Right Quadrant: 3D Model Image
+        # Lower Right Quadrant: 3D Model Image (disabled placeholder)
         self.output_frame_2 = tk.Frame(self.root, relief='sunken', bd=2)
         self.output_frame_2.grid(row=1, column=1, sticky="nsew", padx=10, pady=10)
 
-        self.output_label_2 = tk.Label(self.output_frame_2, text="CFD Prediction", 
+        self.output_label_2 = tk.Label(self.output_frame_2, text="CFD Prediction",
                                        font=("Arial", 12, 'bold'))
         self.output_label_2.pack(pady=5)
 
         self.process_button_2 = tk.Button(
-                self.output_frame_2, text='Run CFD Model', command=lambda:
-                self.run_in_thread(2),
-                state='disabled'
-                )
+            self.output_frame_2, text='Run CFD Model',
+            command=lambda: self.run_in_thread(2),
+            state='disabled'
+        )
         self.process_button_2.pack(pady=5)
 
-        self.output_canvas_2 = tk.Canvas(self.output_frame_2, bg="gray", width=nx, height=ny, highlightthickness=0)
+        self.output_canvas_2 = tk.Canvas(self.output_frame_2, bg="gray",
+                                         width=nx, height=ny, highlightthickness=0)
         self.output_canvas_2.pack()
 
         self.save_button_2 = tk.Button(
@@ -170,8 +185,8 @@ class ImageProcessorApp:
         )
         self.save_button_2.pack(pady=5)
 
+    # --- logging redirection ---
     def write(self, message):
-        # Write to the message area
         self.message_area.config(state="normal")
         self.message_area.insert("end", message)
         self.message_area.config(state="disabled")
@@ -180,20 +195,18 @@ class ImageProcessorApp:
     def flush(self):
         pass
 
-    def make_square_by_mirroring(self, im, tol_ratio = 0.02):
+    # --- image helpers ---
+    def make_square_by_mirroring(self, im, tol_ratio=0.02):
         w, h = im.size
         if abs(w - h) <= tol_ratio * max(w, h):
-            return im  # Already (nearly) square
-
+            return im
         if h > w:
-            # Taller than wide → mirror horizontally, append to right
             mirrored = im.transpose(Image.FLIP_LEFT_RIGHT)
             new_im = Image.new(im.mode, (w * 2, h))
             new_im.paste(im, (0, 0))
             new_im.paste(mirrored, (w, 0))
             return new_im
         else:
-            # Wider than tall → mirror vertically, append to bottom
             mirrored = im.transpose(Image.FLIP_TOP_BOTTOM)
             new_im = Image.new(im.mode, (w, h * 2))
             new_im.paste(im, (0, 0))
@@ -210,81 +223,70 @@ class ImageProcessorApp:
 
     def display_image(self, image, canvas):
         resized_image = image.resize((nx, ny))
+        canvas.delete("all")
         canvas.image = ImageTk.PhotoImage(resized_image)
         canvas.create_image(nx//2, ny//2, anchor=tk.CENTER, image=canvas.image)
 
-    def process_image_1(self):
-        self.process_image(1)
-
-    def process_image_2(self):
-        self.process_image(2)
-
+    # --- threading entrypoints ---
     def run_in_thread(self, variant):
-        thread = threading.Thread(target=self.process_image, args=(variant,))
+        thread = threading.Thread(target=self.process_image, args=(variant,), daemon=True)
         thread.start()
 
     def process_image(self, variant):
         if variant == 1:
-            # Variant 1 is the DL model
-            self.root.after(0, self.process_flownet, variant)
+            self.root.after(0, self.process_flownet)  # U-Net pipeline (FEM in worker)
         else:
-            # Variant 2 is the CFD model
-            pass
+            pass  # CFD button currently disabled
 
-    def process_flownet(self, variant):
+    # --- main pipeline: FEM in short-lived worker, TF in GUI ---
+    def process_flownet(self, _variant_ignored=None):
         if not self.input_image:
             messagebox.showerror("Error", "No input image loaded!")
             return
 
         try:
-            # Get flowrate ratio
             inner_flow = float(self.flowrate_entry_left.get())
             outer_flow = float(self.flowrate_entry_right.get())
-            flowrate_ratio = inner_flow / (inner_flow + outer_flow)  # Compute the ratio
+            flowrate_ratio = inner_flow / (inner_flow + outer_flow)
 
-            # Convert PIL image to grayscale numpy
-            input_image_np = np.asarray(self.input_image)
-            input_image_ch = process_image_channels(input_image_np)
+            # Make a clean grayscale [0..1] array for the FEM worker
+            img_gray_np = np.asarray(self.input_image.convert("L"), dtype=np.float32) / 255.0
 
-            # Run flownet
-            flownet_pred = run_job_preload_model_preload_img(self.flownet_model, 
-                                                             input_image_ch,
-                                                             flowrate_ratio,
-                                                             'test_img.png')
-            # Get brightness value
-            '''
-            brightness = float(self.brightness_entry.get())
-            if brightness < 0.1 or brightness > 3.0:
-                raise ValueError("Brightness out of range (1-3).")
-            '''
+            # ---- Run FEM in a short-lived worker (no idle CPU after) ----
+            with ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context('spawn')) as pool:
+                fut = pool.submit(_fem_only_job, img_gray_np, flowrate_ratio, self.u_max)
+                flow_profile, inner_shape = fut.result()
 
-            self.output_image_1 = flownet_pred
-            # DL model is image 1 for canvas 1
+            # ---- TF in GUI (model already loaded) ----
+            X = create_2ch_test_data_from_img(flow_profile, inner_shape, 256, 256)
+            pred_mask = run_flownet_cpu_preload_model(self.flownet_model, X)
+            rgb = convert_binary_to_color(pred_mask)
+            out_img = Image.fromarray(rgb, mode="RGB")
+
+            self.output_image_1 = out_img
             self.display_image(self.output_image_1, self.output_canvas_1)
 
-        except ValueError as e:
+        except Exception as e:
             self.queue.put(f'Error occured:\n{e}\n')
-            #messagebox.showerror("Input Error", f"{e}")
 
+    # --- queue pump ---
     def process_queue(self):
         while not self.queue.empty():
             message = self.queue.get_nowait()
             self.write(message)
         self.root.after(100, self.process_queue)
 
+    # --- save helpers ---
     def save_image_1(self):
-        # Save DL model image
         self.save_image(self.output_image_1)
 
     def save_image_2(self):
-        # Save CFD model image
         self.save_image(self.output_image_2)
 
     def save_image(self, image):
         if not image:
             messagebox.showerror("Error", "No processed image to save!")
             return
-
         file_path = filedialog.asksaveasfilename(
             defaultextension=".png",
             filetypes=[("PNG files", "*.png"), ("JPEG files", "*.jpg"), ("All files", "*.*")],
