@@ -57,7 +57,7 @@ def CFD_solver_and_streamtrace(Reynolds_number, img_fname, channel_mesh_size, fl
     np.set_printoptions(threshold=100)  # or threshold=sys.maxsize
     print(u.x.array,flush=True)
     limits = 1
-    rev_streamtrace_fig, inner_contour_fig, inner_contour_mesh_fig, seeds, final_output = for_and_rev_streamtrace(
+    rev_streamtrace_fig = for_and_rev_streamtrace(
         num_seeds, limits, img_fname, msh, u, uvw_data, xyz_data, Re)
 
     return rev_streamtrace_fig
