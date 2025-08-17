@@ -32,7 +32,6 @@ from scipy.integrate import solve_ivp
 from dolfinx.io import XDMFFile
 import basix
 import adios4dolfinx
-import numpy as np
 import matplotlib.pyplot as plt
 from scipy.integrate import RK45
 from dolfinx import geometry
@@ -46,6 +45,11 @@ from functools import partial
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import cpu_count
 from tqdm import tqdm
+
+from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+from PIL import Image
+import numpy as np
+import matplotlib.pyplot as plt
 
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
@@ -389,18 +393,37 @@ def run_reverse_streamtrace(seeds, mesh, uh):
 
     if rank == 0:
         print(f"[Rank {rank}] Building bb_tree locally", flush=True)
-        start_time = time.time()
         print("Reverse Streamtracing with MPI (round-robin static scheduling, rank 0 = controller only)", flush=True)
 
     # All ranks build bb_tree independently
     bb_tree = geometry.bb_tree(mesh, mesh.topology.dim)
 
-    # Step 1: Broadcast total number of seeds
+    # --- Serial fallback ---
+    if size == 1:
+        if rank == 0:
+            print("[Rank 0] Only one MPI process detected. Running in serial mode.", flush=True)
+            start_time = time.time()
+
+            result_buffer = np.full((seeds.shape[0], 3), np.nan)
+            pbar = tqdm(total=seeds.shape[0], desc="Serial Tracing", ncols=80)
+
+            for i, seed in enumerate(seeds):
+                x, y, z = reverse_streamtrace_pool(seed, bb_tree, mesh, uh)
+                result_buffer[i] = [x[0], y[0], z[0]]
+
+            elapsed_time = time.time() - start_time
+            print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds (serial)", flush=True)
+
+            print(result_buffer)
+            return result_buffer[:, 0], result_buffer[:, 1], result_buffer[:, 2]
+        else:
+            return None, None, None
+
+    # --- Parallel MPI logic ---
     num_seeds = seeds.shape[0] if rank == 0 else None
     num_seeds = comm.bcast(num_seeds, root=0)
 
     if rank == 0:
-        # Assign seeds round-robin to ranks 1..(size-1)
         worker_ranks = list(range(1, size))
         assigned = [[] for _ in range(size)]  # assigned[rank] = list of (index, seed)
 
@@ -408,11 +431,9 @@ def run_reverse_streamtrace(seeds, mesh, uh):
             worker = worker_ranks[i % len(worker_ranks)]
             assigned[worker].append((i, seed))
 
-        # Send assigned seeds to workers
         for r in worker_ranks:
             comm.send(assigned[r], dest=r, tag=1)
 
-        # Initialize result buffer
         result_buffer = np.full((num_seeds, 3), np.nan)
         pbar = tqdm(total=num_seeds, desc=f"[Rank {rank} Receiving]", position=rank, ncols=80)
 
@@ -427,23 +448,6 @@ def run_reverse_streamtrace(seeds, mesh, uh):
         print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds", flush=True)
 
         return result_buffer[:, 0], result_buffer[:, 1], result_buffer[:, 2]
-
-    else:
-        # Worker: receive assigned seeds
-        assigned_seeds = comm.recv(source=0, tag=1)
-
-        local_results = []
-        pbar = tqdm(total=len(assigned_seeds), desc=f"[Rank {rank} Working]", position=rank, ncols=80)
-
-        for i, seed in assigned_seeds:
-            res = reverse_streamtrace_pool(seed, bb_tree=bb_tree, mesh=mesh, uh=uh)
-            result = res if res is not None else (np.nan, np.nan, np.nan)
-            local_results.append((i, result))
-            pbar.update(1)
-
-        pbar.close()
-        comm.send(local_results, dest=0, tag=2)
-        return None, None, None
 
 def plot_inlet(contour, inner_mesh, limits):
     if comm.Get_rank() == 0:
@@ -518,20 +522,48 @@ def save_figs(img_fname, inner_contour_fig, inner_contour_mesh_fig, seeds, final
 
 def plot_rev_streamtrace(final_output, limits):
     if rank == 0:
-        print('Plotting Reverse Streamtrace', flush = True)
+        print('Plotting Reverse Streamtrace', flush=True)
 
-    rev_streamtrace_fig, ax = plt.subplots()
-    ax.scatter(final_output[:, 0], final_output[:, 1], marker = ".")
+    fig, ax = plt.subplots()
+    ax.scatter(final_output[:, 0], final_output[:, 1], marker=".")
     ax.set_aspect('equal')
-    ax.set_xlim(-1*limits, limits)
-    ax.set_ylim(-1*limits, limits)
+    ax.set_xlim(-1 * limits, limits)
+    ax.set_ylim(-1 * limits, limits)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_xticklabels([])
     ax.set_yticklabels([])
-    # plt.show()
 
-    return rev_streamtrace_fig
+    # Attach the canvas and draw the figure
+    canvas = FigureCanvas(fig)
+    canvas.draw()
+
+    # Retrieve image as RGB string from the renderer
+    w, h = canvas.get_width_height()
+    buf = np.asarray(canvas.buffer_rgba(), dtype=np.uint8)  # shape (h, w, 4)
+
+    # Convert to PIL.Image (drop alpha channel if needed)
+    image = Image.fromarray(buf[:, :, :3])  # RGB only
+
+    plt.close(fig)  # Avoid memory leak
+    return image
+
+# def plot_rev_streamtrace(final_output, limits):
+#     if rank == 0:
+#         print('Plotting Reverse Streamtrace', flush = True)
+
+#     rev_streamtrace_fig, ax = plt.subplots()
+#     ax.scatter(final_output[:, 0], final_output[:, 1], marker = ".")
+#     ax.set_aspect('equal')
+#     ax.set_xlim(-1*limits, limits)
+#     ax.set_ylim(-1*limits, limits)
+#     ax.set_xticks([])
+#     ax.set_yticks([])
+#     ax.set_xticklabels([])
+#     ax.set_yticklabels([])
+#     # plt.show()
+
+#     return rev_streamtrace_fig
 
 def find_seed_end(rev_pointsy, rev_pointsz, seeds, contour):
     contour = contour[:, 1:3]
@@ -624,6 +656,7 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
 
         print(f"[Rank {rank}] STEP 5: Generating seeds", flush=True)
         seeds = make_rev_streamtrace_seeds(minx, maxx, miny, maxy, num_seeds)
+
     else:
         seeds = None
         bb_tree = None
@@ -636,7 +669,6 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
         print(f"[Rank {rank}] STEP 6: Broadcasting seeds, bb_tree, and contour", flush=True)
     seeds = comm.bcast(seeds, root=0)
     comm.Barrier()
-    
     if rank == 0:
         print(f"[Rank {rank}] STEP 7: Running reverse streamtrace", flush=True)
     coords = mesh.geometry.x  # Nx3 array of vertex coords
@@ -647,21 +679,18 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
 
     if rank == 0:
         print(f"[Rank {rank}] STEP 8: Post-processing and plotting final output", flush=True)
+    
         final_output = find_seed_end(rev_pointsy, rev_pointsz, seeds, contour)
+        print(final_output)
+        
         rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits)
-
         print(f"[Rank {rank}] Finished streamtrace function", flush=True)
         return (
-            rev_streamtrace_fig,
-            inner_contour_fig,
-            inner_contour_mesh_fig,
-            seeds,
-            final_output
+            rev_streamtrace_fig
         )
     else:
         print(f"[Rank {rank}] Finished streamtrace function (no output to return)", flush=True)
         return None, None, None, None, None
-
 
 def main():
     limits = 0.5

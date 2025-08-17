@@ -175,7 +175,7 @@ class ImageProcessorApp:
         self.mesh_label = tk.Label(self.output_frame_2, text="Mesh Size:")
         self.mesh_label.pack()
         self.mesh_entry = tk.Entry(self.output_frame_2, width=10)
-        self.mesh_entry.insert(0, "0.1")  # Default mesh size
+        self.mesh_entry.insert(0, "0.05")  # Default mesh size
         self.mesh_entry.pack()
 
         # Reynolds number input
@@ -301,9 +301,9 @@ class ImageProcessorApp:
             # If you have a CFD function to call, you'd do it here:
             img_fname = self.input_image_path  # ✅ Use stored image path
             print(img_fname, flush=True)
-            result = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
+            rev_streamtrace_image = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
 
-            self.output_image_2 = result
+            self.output_image_2 = rev_streamtrace_image
             self.display_image(self.output_image_2, self.output_canvas_2)
 
         except ValueError as e:
