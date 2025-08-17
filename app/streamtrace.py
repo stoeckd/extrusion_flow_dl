@@ -520,33 +520,50 @@ def save_figs(img_fname, inner_contour_fig, inner_contour_mesh_fig, seeds, final
     np.savetxt("rev_seeds.csv", seeds, delimiter=",")
     np.savetxt("final_output.csv", final_output, delimiter=",")
 
-def plot_rev_streamtrace(final_output, limits):
-    if rank == 0:
-        print('Plotting Reverse Streamtrace', flush=True)
 
+def plot_rev_streamtrace(final_output, limits, inner_mesh):
+
+    nx, ny = 300, 300  # Match canvas sizes in your GUI
+    dpi = 300          
     fig, ax = plt.subplots()
-    ax.scatter(final_output[:, 0], final_output[:, 1], marker=".")
+
+    # Set exact figure size to match canvas size
+    fig.set_size_inches(1, 1)
+    fig.set_dpi(dpi)
+
+    # Remove whitespace around plot
+    plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+    ax.scatter(inner_mesh[:,1], inner_mesh[:,2])
     ax.set_aspect('equal')
-    ax.set_xlim(-1 * limits, limits)
-    ax.set_ylim(-1 * limits, limits)
+    ax.set_xlim(-1*limits, limits)
+    ax.set_ylim(-1*limits, limits)
     ax.set_xticks([])
     ax.set_yticks([])
     ax.set_xticklabels([])
     ax.set_yticklabels([])
 
-    # Attach the canvas and draw the figure
+    # Plotting
+    ax.scatter(final_output[:, 0], final_output[:, 1], marker=".", s=1)
+    ax.set_aspect('equal')
+    ax.set_xlim(-limits, limits)
+    ax.set_ylim(-limits, limits)
+    ax.axis('off')  # Turn off all axes, ticks, labels
+
+    # Draw to canvas
     canvas = FigureCanvas(fig)
     canvas.draw()
 
-    # Retrieve image as RGB string from the renderer
-    w, h = canvas.get_width_height()
-    buf = np.asarray(canvas.buffer_rgba(), dtype=np.uint8)  # shape (h, w, 4)
+    # Get RGBA buffer and convert to PIL image
+    buf = np.asarray(canvas.buffer_rgba())
+    image = Image.fromarray(buf[:, :, :3])  # Drop alpha channel
 
-    # Convert to PIL.Image (drop alpha channel if needed)
-    image = Image.fromarray(buf[:, :, :3])  # RGB only
+    plt.close(fig)  # Free memory
 
-    plt.close(fig)  # Avoid memory leak
+    # Resize to match canvas display exactly
+    image = image.resize((nx, ny), Image.LANCZOS)
     return image
+
 
 # def plot_rev_streamtrace(final_output, limits):
 #     if rank == 0:
@@ -681,16 +698,15 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
         print(f"[Rank {rank}] STEP 8: Post-processing and plotting final output", flush=True)
     
         final_output = find_seed_end(rev_pointsy, rev_pointsz, seeds, contour)
-        print(final_output)
         
-        rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits)
+        rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits, inner_mesh)
         print(f"[Rank {rank}] Finished streamtrace function", flush=True)
         return (
             rev_streamtrace_fig
         )
     else:
         print(f"[Rank {rank}] Finished streamtrace function (no output to return)", flush=True)
-        return None, None, None, None, None
+        return None
 
 def main():
     limits = 0.5
