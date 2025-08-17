@@ -134,7 +134,8 @@ def optimize_contour(contour):
     
     # Set characteristic lengths, epsilon cutoff
     lc = min((max_x - min_x), (max_y - min_y))
-    mesh_lc = 0.05 * lc    
+    # mesh_lc = 0.05 * lc
+    mesh_lc = 0.1*lc   
 
     return [contour, mesh_lc]
 

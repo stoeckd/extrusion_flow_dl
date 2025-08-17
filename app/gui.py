@@ -294,6 +294,10 @@ class ImageProcessorApp:
             self.queue.put(f"  Reynolds number set to: {Reynolds_number}\n")
             self.queue.put(f"  Streamtrace Seeds: {num_seeds}\n")
 
+            print(mesh_size)
+            mesh_size = mesh_size/10
+            print(mesh_size)
+
             # If you have a CFD function to call, you'd do it here:
             img_fname = self.input_image_path  # ✅ Use stored image path
             print(img_fname, flush=True)

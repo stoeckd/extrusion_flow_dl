@@ -54,8 +54,11 @@ def run_trace_save():
 def CFD_solver_and_streamtrace(Reynolds_number, img_fname, channel_mesh_size, flow_ratio, num_seeds):
     msh, uh, uvw_data, xyz_data, Re, img_fname, channel_mesh_size, V, Q, flow_ratio, u, p = solve_NS_flow(
             Reynolds_number, img_fname, channel_mesh_size, flow_ratio)
+    np.set_printoptions(threshold=500)  # or threshold=sys.maxsize
+    print(u.x.array,flush=True)
+    limits = 1
     rev_streamtrace_fig, inner_contour_fig, inner_contour_mesh_fig, seeds, final_output = for_and_rev_streamtrace(
-            num_seeds, limits, img_fname, msh, u, uvw_data, xyz_data, Re, Folder_name)
+        num_seeds, limits, img_fname, msh, u, uvw_data, xyz_data, Re)
 
     return rev_streamtrace_fig
 

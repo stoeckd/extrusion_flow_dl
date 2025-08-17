@@ -229,7 +229,7 @@ def run_streamtrace(inner_mesh, bb_tree, mesh, uh):
 
     # print("Sample results:")
     # for i, res in enumerate(results):
-        # print(f"[{i}] type={type(res)}, value={res}")
+    #     print(f"[{i}] type={type(res)}, value={res}")
 
     # Filter out None results
     results = [res for res in results if res is not None]
@@ -552,8 +552,7 @@ def find_seed_end(rev_pointsy, rev_pointsz, seeds, contour):
 
     return valid_seeds
 
-
-def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xyz_data, Re, Folder_name):
+def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xyz_data, Re):
     """
     Performs forward and reverse stream tracing based on an image-derived inlet contour and mesh data.
 
@@ -587,7 +586,7 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    mesh, uh, uvw_data, xyz_data = read_mesh_and_function(f"{Folder_name}/Re{Re}ChannelVelocity", 'Velocity', 3)
+    # mesh, uh, uvw_data, xyz_data = read_mesh_and_function(f"{Folder_name}/Re{Re}ChannelVelocity", 'Velocity', 3)
     # if rank == 0:
         # print(f"x range in mesh: {coords[:,0].min()} to {coords[:,0].max()}", flush=True)
 
@@ -614,8 +613,8 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
     contour = comm.bcast(contour, root=0)
     comm.Barrier()
     if rank == 0:
-        print(f"[Rank {rank}] STEP 2: Plotting inlet stuff", flush=True)
-        inner_contour_fig, inner_contour_mesh_fig = plot_inlet(contour, inner_mesh, limits)
+        # print(f"[Rank {rank}] STEP 2: Plotting inlet stuff", flush=True)
+        # inner_contour_fig, inner_contour_mesh_fig = plot_inlet(contour, inner_mesh, limits)
 
         print(f"[Rank {rank}] STEP 3: Running forward streamtrace", flush=True)
         pointsx, pointsy, pointsz = run_streamtrace(inner_mesh, bb_tree, mesh, uh)

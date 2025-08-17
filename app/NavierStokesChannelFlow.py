@@ -521,7 +521,9 @@ def solve_NS_flow(Re, img_fname, flowrate_ratio, channel_mesh_size):
     a, w, dF, V = define_navier_stokes_form(W, msh, Re, U_stokes = U_stokes)
     w_coarse, u, p = solve_navier_stokes(a, w, dF, bcs, W, snes_ksp_type, comm, rank)
 
+    channel_mesh_size = channel_mesh_size/10
     # Solve Navier Stokes With User Defined Mesh
+    print(channel_mesh_size)
     msh, ft = generate_mesh(img_fname, channel_mesh_size)
     V, Q = define_function_spaces(msh)
     W, bcs = create_boundary_conditions(msh, ft, V, Q, uh_1, uh_2)
