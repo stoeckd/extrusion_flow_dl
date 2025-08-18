@@ -4,3 +4,5 @@
 *.msh
 *.xao
 *.geo*
+*.h5
+*.xdmf
