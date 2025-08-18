@@ -238,7 +238,7 @@ def define_navier_stokes_form(W, msh, Re, U_stokes=None, U_coarse=None):
     tau_SUPS = 1.0 / sqrt(inner(u, G * u) + Ci * (nu ** 2) * inner(G, G))
 
     sigma = 2 * nu * ufl.sym(grad(u)) - p * ufl.Identity(len(u))
-    res_M = dot(u, grad(u)) - div(sigma)
+    res_M = dot(u, nabla_grad(u)) - div(sigma)
 
     a = inner(dot(u, nabla_grad(u)), v) * dx
     a += nu * inner(grad(u), grad(v)) * dx

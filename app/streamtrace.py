@@ -520,8 +520,7 @@ def save_figs(img_fname, inner_contour_fig, inner_contour_mesh_fig, seeds, final
     np.savetxt("rev_seeds.csv", seeds, delimiter=",")
     np.savetxt("final_output.csv", final_output, delimiter=",")
 
-
-def plot_rev_streamtrace(final_output, limits, inner_mesh):
+def plot_rev_streamtrace(final_output, limits, inner_mesh, seeds, pointsy, pointsz):
 
     nx, ny = 300, 300  # Match canvas sizes in your GUI
     dpi = 300          
@@ -534,23 +533,36 @@ def plot_rev_streamtrace(final_output, limits, inner_mesh):
     # Remove whitespace around plot
     plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
 
-    ax.scatter(inner_mesh[:,1], inner_mesh[:,2])
-    ax.set_aspect('equal')
-    ax.set_xlim(-1*limits, limits)
-    ax.set_ylim(-1*limits, limits)
-    ax.set_xticks([])
-    ax.set_yticks([])
-    ax.set_xticklabels([])
-    ax.set_yticklabels([])
+    # plot the inner mesh
+    # ax.scatter(inner_mesh[:,1], inner_mesh[:,2])
+    # ax.set_aspect('equal')
+    # ax.set_xlim(-1*limits, limits)
+    # ax.set_ylim(-1*limits, limits)
+    # ax.set_xticks([])
+    # ax.set_yticks([])
+    # ax.set_xticklabels([])
+    # ax.set_yticklabels([])
 
-    # Plotting
+    # Plot the seeds used for reverse streamtrace
+    # ax.scatter(seeds[:, 1], seeds[:, 2], marker=".")
+    # ax.set_aspect('equal')
+    # ax.set_xlim(-limits, limits)
+    # ax.set_ylim(-limits, limits)
+
+    # Plot the points from the forward streamtrace
+    ax.scatter(pointsy, pointsz, marker=".")
+    ax.set_aspect('equal')
+    ax.set_xlim(-limits, limits)
+    ax.set_ylim(-limits, limits)
+
+    # Plot the final output of the reverse streamtrace
     ax.scatter(final_output[:, 0], final_output[:, 1], marker=".", s=1)
     ax.set_aspect('equal')
     ax.set_xlim(-limits, limits)
     ax.set_ylim(-limits, limits)
-    ax.axis('off')  # Turn off all axes, ticks, labels
 
     # Draw to canvas
+    ax.axis('off')  # Turn off all axes, ticks, labels
     canvas = FigureCanvas(fig)
     canvas.draw()
 
@@ -563,24 +575,6 @@ def plot_rev_streamtrace(final_output, limits, inner_mesh):
     # Resize to match canvas display exactly
     image = image.resize((nx, ny), Image.LANCZOS)
     return image
-
-
-# def plot_rev_streamtrace(final_output, limits):
-#     if rank == 0:
-#         print('Plotting Reverse Streamtrace', flush = True)
-
-#     rev_streamtrace_fig, ax = plt.subplots()
-#     ax.scatter(final_output[:, 0], final_output[:, 1], marker = ".")
-#     ax.set_aspect('equal')
-#     ax.set_xlim(-1*limits, limits)
-#     ax.set_ylim(-1*limits, limits)
-#     ax.set_xticks([])
-#     ax.set_yticks([])
-#     ax.set_xticklabels([])
-#     ax.set_yticklabels([])
-#     # plt.show()
-
-#     return rev_streamtrace_fig
 
 def find_seed_end(rev_pointsy, rev_pointsz, seeds, contour):
     contour = contour[:, 1:3]
@@ -699,7 +693,7 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
     
         final_output = find_seed_end(rev_pointsy, rev_pointsz, seeds, contour)
         
-        rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits, inner_mesh)
+        rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits, inner_mesh, seeds, pointsy, pointsz)
         print(f"[Rank {rank}] Finished streamtrace function", flush=True)
         return (
             rev_streamtrace_fig

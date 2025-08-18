@@ -33,10 +33,8 @@ from dolfinx.plot import vtk_mesh
 from shapely.geometry import Point
 from shapely.geometry.polygon import Polygon
 
-
 comm = MPI.COMM_WORLD
 rank = comm.Get_rank()
-
 
 
 def load_image(img_fname): # Want this entire function
@@ -84,12 +82,11 @@ def get_contours(gray_img): # Want this entire function
 
         contour[:,0] -= 0.5 * width
         contour[:,0] /= width
-        contour[:,0] *= -1.0
+        # contour[:,0] *= -1.0
 
     #print("{:d} Contours detected".format(len(contours)))
 
     return contours
-
 
 def optimize_contour(contour):
     #print("Optimizing contour.")
@@ -134,8 +131,8 @@ def optimize_contour(contour):
     
     # Set characteristic lengths, epsilon cutoff
     lc = min((max_x - min_x), (max_y - min_y))
-    # mesh_lc = 0.05 * lc
-    mesh_lc = 0.1*lc   
+    mesh_lc = 0.05 * lc
+    # mesh_lc = 0.1*lc   
 
     return [contour, mesh_lc]
 
@@ -291,7 +288,6 @@ def solve_velocity_field(mesh_file: str):
     #    plotter.screenshot("deflection.png") 
     return uh, area, average_velocity, msh, V
 
-
 def solve_inlet_profiles(img_fname, flowrate_ratio):
     # File paths for saving meshes
     inner_mesh_file = "inner_contour_mesh.msh"
@@ -352,7 +348,6 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
     #coor_2 = V_2.tabulate_dof_coordinates()
     #u_2 = uh_2.x.array.real.astype(np.float32)
     return uh_1, msh_1, uh_2, msh_2
-
 
 def create_inner_shape(contour_points):
     # Fill image with inner flow shape
