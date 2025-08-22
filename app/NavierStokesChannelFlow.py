@@ -235,6 +235,7 @@ def solve_stokes_problem(a, L, bcs, W, Uold=None, msh=None):
         print("Finished Linear Solve", flush=True)
     return U
 
+
 def define_navier_stokes_form(W, msh, Re, U_stokes=None, U_coarse=None):
     # Create the weak form of the Naiver-Stokes equation, a GLS stabilization method is used to help find a solution
     dx = ufl.dx(metadata={'quadrature_degree': 2})
@@ -283,6 +284,7 @@ def define_navier_stokes_form(W, msh, Re, U_stokes=None, U_coarse=None):
     
     return a, w, dF, V_NS
 
+
 def solve_navier_stokes(a, w, dF, bcs, W, snes_ksp_type, comm, rank):
     problem = NonlinearPDE_SNESProblem(a, w, bcs)
 
@@ -329,7 +331,6 @@ def solve_navier_stokes(a, w, dF, bcs, W, snes_ksp_type, comm, rank):
     p = w.sub(1).collapse()
     return w, u, p
 
-from dolfinx.io import XDMFFile
 
 def save_navier_stokes_solution(u, p, msh, FolderName, Re, comm, rank):
     if rank == 0:
@@ -362,6 +363,7 @@ def save_navier_stokes_solution(u, p, msh, FolderName, Re, comm, rank):
 
     # Barrier to synchronize all ranks before proceeding
     comm.Barrier()
+
 
 '''
 def save_navier_stokes_solution(u, p, msh, FolderName, Re, comm, rank):
@@ -566,6 +568,7 @@ def solve_NS_flow(Re, img_fname, flowrate_ratio, channel_mesh_size):
     uvw_data = values[unique_indices]
 
     return msh, uh, uvw_data, xyz_data, Re, img_fname, channel_mesh_size, V, Q, flowrate_ratio, u, p
+
 
 def main():
     # Get Inputs

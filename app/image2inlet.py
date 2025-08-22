@@ -295,6 +295,8 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
     inner_mesh_file = "inner_contour_mesh.msh"
     outer_mesh_file = "outer_contour_mesh.msh"
 
+    flowrate_ratio = flowrate_ratio*100.0
+
     if rank == 0:
         # STEP 1: Generate Gmsh models only on rank 0
         print("[Rank 0] Starting image2gmsh...", flush=True)
@@ -333,6 +335,8 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
     # flowrate ratio and each flow area
     flow_u_1 = flowrate_ratio / area_1
     flow_u_2 = (1.0 - flowrate_ratio) / area_2
+
+    print('flowrate ratio', flowrate_ratio)
 
     uh_1.x.array[:] *= flow_u_1
     uh_2.x.array[:] *= flow_u_2
