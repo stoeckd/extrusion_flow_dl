@@ -550,10 +550,10 @@ def plot_rev_streamtrace(final_output, limits, inner_mesh, seeds, pointsy, point
     # ax.set_ylim(-limits, limits)
 
     # Plot the points from the forward streamtrace
-    ax.scatter(pointsy, pointsz, marker=".")
-    ax.set_aspect('equal')
-    ax.set_xlim(-limits, limits)
-    ax.set_ylim(-limits, limits)
+    # ax.scatter(pointsy, pointsz, marker=".")
+    # ax.set_aspect('equal')
+    # ax.set_xlim(-limits, limits)
+    # ax.set_ylim(-limits, limits)
 
     # Plot the final output of the reverse streamtrace
     ax.scatter(final_output[:, 0], final_output[:, 1], marker=".", s=1)
