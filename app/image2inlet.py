@@ -359,7 +359,7 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
     uh_2_out.interpolate(uh_2)
 
     with XDMFFile(comm, "uh_2_inlet_profile_vel.xdmf", "w") as ufile_xdmf:
-        uh_1_out.name = "uh_2_Velocity"
+        uh_2_out.name = "uh_2_Velocity"
         ufile_xdmf.write_mesh(msh_2)
         ufile_xdmf.write_function(uh_2_out)
 

@@ -133,17 +133,35 @@ def create_boundary_conditions(msh, ft, V, Q, uh_1, uh_2):
     noslip = Function(V_interp)
     bc_wall = dirichletbc(noslip, fem.locate_dofs_topological((W0, V_interp), msh.topology.dim - 1, ft.find(4)), W0)
 
-    inlet_1_velocity = interpolate_inlet_to_3d(uh_1, V_interp, msh)
-    bc_inlet_1 = dirichletbc(inlet_1_velocity, fem.locate_dofs_topological((W0, V_interp), msh.topology.dim - 1, ft.find(1)), W0)
-
     inlet_2_velocity = interpolate_inlet_to_3d(uh_2, V_interp, msh)
     bc_inlet_2 = dirichletbc(inlet_2_velocity, fem.locate_dofs_topological((W0, V_interp), msh.topology.dim - 1, ft.find(2)), W0)
+    print("uh_2 Norm:")
+    np.set_printoptions(threshold=3000)
+    norm = np.linalg.norm(uh_2.x.array)
+    print(norm)
+    print("Inlet 2 Velocity Profile:")
+    np.set_printoptions(threshold=3000)
+    norm = np.linalg.norm(inlet_2_velocity.x.array)
+    print(norm)
+
+    inlet_1_velocity = interpolate_inlet_to_3d(uh_1, V_interp, msh)
+    bc_inlet_1 = dirichletbc(inlet_1_velocity, fem.locate_dofs_topological((W0, V_interp), msh.topology.dim - 1, ft.find(1)), W0)
+    print("uh_1 Norm:")
+    np.set_printoptions(threshold=3000)
+    norm = np.linalg.norm(uh_1.x.array)
+    print(norm)
+    print("Inlet 1 Velocity Profile:")
+    np.set_printoptions(threshold=1000)
+    norm = np.linalg.norm(inlet_1_velocity.x.array)
+    print(norm)
 
     W1 = W.sub(1)
     Q_interp, _ = W1.collapse()
     bc_outlet = dirichletbc(PETSc.ScalarType(0), fem.locate_dofs_topological(W1, msh.topology.dim - 1, ft.find(3)), W1)
 
     bcs = [bc_wall, bc_inlet_1, bc_inlet_2, bc_outlet]
+
+    # bcs = [bc_wall, bc_inlet_1, bc_outlet]
     return W, bcs
 
 
