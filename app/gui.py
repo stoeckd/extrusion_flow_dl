@@ -279,7 +279,7 @@ class ImageProcessorApp:
             num_seeds = int(self.seeds_entry.get())
             inner_flow = float(self.flowrate_entry_left.get())
             outer_flow = float(self.flowrate_entry_right.get())
-            flowrate_ratio = inner_flow / (inner_flow + outer_flow)  # Compute the ratio
+            flowrate_ratio = float(inner_flow / (inner_flow + outer_flow))  # Compute the ratio
 
             if not (1 <= Reynolds_number <= 10):
                 raise ValueError("Reynolds number must be between 1 and 10.")
@@ -293,14 +293,12 @@ class ImageProcessorApp:
             self.queue.put(f"  Mesh Size: {mesh_size}\n")
             self.queue.put(f"  Reynolds number set to: {Reynolds_number}\n")
             self.queue.put(f"  Streamtrace Seeds: {num_seeds}\n")
-
-            print(mesh_size)
-            mesh_size = mesh_size/10
-            print(mesh_size)
+            self.queue.put(f"  Flowrate Ratio: {flowrate_ratio}\n")
 
             # If you have a CFD function to call, you'd do it here:
             img_fname = self.input_image_path  # ✅ Use stored image path
             print(img_fname, flush=True)
+
             rev_streamtrace_image = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
 
             self.output_image_2 = rev_streamtrace_image

@@ -485,7 +485,7 @@ def make_output_folder(Re, img_fname, channel_mesh_size, comm, rank):
     return full_folder_path, img_name
 
 
-def solve_NS_flow(Re, img_fname, flowrate_ratio, channel_mesh_size):
+def solve_NS_flow(Re, img_fname, channel_mesh_size, flowrate_ratio):
     """
     Solves the incompressible Navier-Stokes flow in a domain derived from an input image.
 
@@ -528,6 +528,8 @@ def solve_NS_flow(Re, img_fname, flowrate_ratio, channel_mesh_size):
     # Get Inputs
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+
+    print('Mesh Lc:', channel_mesh_size)
 
     # Solve Stokes Flow
     uh_1, msh_1, uh_2, msh_2 = generate_inlet_profiles(img_fname, flowrate_ratio)

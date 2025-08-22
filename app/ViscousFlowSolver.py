@@ -19,6 +19,9 @@ rank = comm.Get_rank()
 
 
 def CFD_solver_and_streamtrace(Reynolds_number, img_fname, channel_mesh_size, flow_ratio, num_seeds):
+    print("Flow ratio in CFD_solver_and_streamtrace:")
+    print(flow_ratio)
+
     msh, uh, uvw_data, xyz_data, Re, img_fname, channel_mesh_size, V, Q, flow_ratio, u, p = solve_NS_flow(
             Reynolds_number, img_fname, channel_mesh_size, flow_ratio)
 
