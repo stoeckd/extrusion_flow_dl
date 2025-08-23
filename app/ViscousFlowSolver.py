@@ -26,7 +26,7 @@ def CFD_solver_and_streamtrace(Reynolds_number, img_fname, channel_mesh_size, fl
             Reynolds_number, img_fname, channel_mesh_size, flow_ratio)
 
     np.set_printoptions(threshold=100)  # or threshold=sys.maxsize
-    limits = 1
+    limits = 0.53
 
     u.x.scatter_forward()
     p.x.scatter_forward()

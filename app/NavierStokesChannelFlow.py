@@ -135,25 +135,25 @@ def create_boundary_conditions(msh, ft, V, Q, uh_1, uh_2):
 
     inlet_2_velocity = interpolate_inlet_to_3d(uh_2, V_interp, msh)
     bc_inlet_2 = dirichletbc(inlet_2_velocity, fem.locate_dofs_topological((W0, V_interp), msh.topology.dim - 1, ft.find(2)), W0)
-    print("uh_2 Norm:")
-    np.set_printoptions(threshold=3000)
-    norm = np.linalg.norm(uh_2.x.array)
-    print(norm)
-    print("Inlet 2 Velocity Profile:")
-    np.set_printoptions(threshold=3000)
-    norm = np.linalg.norm(inlet_2_velocity.x.array)
-    print(norm)
+    # print("uh_2 Norm:")
+    # np.set_printoptions(threshold=3000)
+    # norm = np.linalg.norm(uh_2.x.array)
+    # print(norm)
+    # print("Inlet 2 Velocity Profile:")
+    # np.set_printoptions(threshold=3000)
+    # norm = np.linalg.norm(inlet_2_velocity.x.array)
+    # print(norm)
 
     inlet_1_velocity = interpolate_inlet_to_3d(uh_1, V_interp, msh)
     bc_inlet_1 = dirichletbc(inlet_1_velocity, fem.locate_dofs_topological((W0, V_interp), msh.topology.dim - 1, ft.find(1)), W0)
-    print("uh_1 Norm:")
-    np.set_printoptions(threshold=3000)
-    norm = np.linalg.norm(uh_1.x.array)
-    print(norm)
-    print("Inlet 1 Velocity Profile:")
-    np.set_printoptions(threshold=1000)
-    norm = np.linalg.norm(inlet_1_velocity.x.array)
-    print(norm)
+    # print("uh_1 Norm:")
+    # np.set_printoptions(threshold=3000)
+    # norm = np.linalg.norm(uh_1.x.array)
+    # print(norm)
+    # print("Inlet 1 Velocity Profile:")
+    # np.set_printoptions(threshold=1000)
+    # norm = np.linalg.norm(inlet_1_velocity.x.array)
+    # print(norm)
 
     W1 = W.sub(1)
     Q_interp, _ = W1.collapse()
@@ -529,8 +529,6 @@ def solve_NS_flow(Re, img_fname, channel_mesh_size, flowrate_ratio):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
-    print('Mesh Lc:', channel_mesh_size)
-
     # Solve Stokes Flow
     uh_1, msh_1, uh_2, msh_2 = generate_inlet_profiles(img_fname, flowrate_ratio)
     msh, ft = generate_mesh(img_fname, 0.1)
@@ -544,7 +542,6 @@ def solve_NS_flow(Re, img_fname, channel_mesh_size, flowrate_ratio):
     w_coarse, u, p = solve_navier_stokes(a, w, dF, bcs, W, snes_ksp_type, comm, rank)
 
     # Solve Navier Stokes With User Defined Mesh
-    print(channel_mesh_size)
     msh, ft = generate_mesh(img_fname, channel_mesh_size)
     V, Q = define_function_spaces(msh)
     W, bcs = create_boundary_conditions(msh, ft, V, Q, uh_1, uh_2)

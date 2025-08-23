@@ -193,11 +193,14 @@ def reverse_position_event(t, y, bb_tree, mesh, uh):
 
 def inner_contour_mesh_func(img_fname):
     # Make a mesh of the inner countor and used those points to streamtrace
-    inner_mesh = solve_inlet_profiles(img_fname, 0.5)[1]
+    result = solve_inlet_profiles(img_fname, 0.5)
+    inner_mesh = result[1]
+    outer_mesh = result[3]
     if rank == 0:
         print("Made inner mesh", flush=True)
     inner_mesh = inner_mesh.geometry.x
-    return inner_mesh
+    outer_mesh = outer_mesh.geometry.x
+    return inner_mesh, outer_mesh
 
 def streamtrace_pool(row, bb_tree, mesh, uh):
     t_span = (0, 20)
@@ -247,10 +250,6 @@ def run_streamtrace(inner_mesh, bb_tree, mesh, uh):
         pointsx = np.array([])
         pointsy = np.array([])
         pointsz = np.array([])
-
-    elapsed_time = time.time() - start_time
-    if rank == 0:
-        print(f"Elapsed time: {elapsed_time:.4f} seconds", flush = True)
     return pointsx, pointsy, pointsz
 
 def plot_streamtrace(pointsy, pointsz, contour, limits):
@@ -413,8 +412,6 @@ def run_reverse_streamtrace(seeds, mesh, uh):
 
             elapsed_time = time.time() - start_time
             print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds (serial)", flush=True)
-
-            print(result_buffer)
             return result_buffer[:, 0], result_buffer[:, 1], result_buffer[:, 2]
         else:
             return None, None, None
@@ -505,29 +502,20 @@ def save_figs(img_fname, inner_contour_fig, inner_contour_mesh_fig, seeds, final
         print('Saving Figures', flush = True)
     inner_contour_fig.savefig("inner_contour.svg")
     inner_contour_mesh_fig.savefig("inner_mesh.svg")
-
-    if comm.Get_rank() == 0:
-        print(img_fname, flush = True)
     img_fname = os.path.basename(img_fname)
-
-    if comm.Get_rank() == 0:
-        print(img_fname, flush = True)
     img_fname = img_fname.removesuffix(".png")
-
-    if comm.Get_rank() == 0:
-        print(img_fname, flush = True)
     rev_streamtrace_fig.savefig(f"rev_trace_{img_fname}_{num_seeds}.svg")
     np.savetxt("rev_seeds.csv", seeds, delimiter=",")
     np.savetxt("final_output.csv", final_output, delimiter=",")
 
-def plot_rev_streamtrace(final_output, limits, inner_mesh, seeds, pointsy, pointsz):
+def plot_rev_streamtrace(final_output, limits, inner_mesh, outer_mesh, seeds, pointsy, pointsz):
 
-    nx, ny = 300, 300  # Match canvas sizes in your GUI
-    dpi = 300          
+    nx, ny = 450, 450  # Match canvas sizes in your GUI
+    dpi = 450          
     fig, ax = plt.subplots()
 
     # Set exact figure size to match canvas size
-    fig.set_size_inches(1, 1)
+    fig.set_size_inches(1.5, 1.5)
     fig.set_dpi(dpi)
 
     # Remove whitespace around plot
@@ -538,6 +526,14 @@ def plot_rev_streamtrace(final_output, limits, inner_mesh, seeds, pointsy, point
     # ax.set_aspect('equal')
     # ax.set_xlim(-1*limits, limits)
     # ax.set_ylim(-1*limits, limits)
+    # ax.set_xticks([])
+    # ax.set_yticks([])
+    # ax.set_xticklabels([])
+    # ax.set_yticklabels([])
+
+    # Plot the outer mesh
+    # ax.scatter(outer_mesh[:,1], outer_mesh[:,2])
+    # ax.set_aspect('equal')
     # ax.set_xticks([])
     # ax.set_yticks([])
     # ax.set_xticklabels([])
@@ -646,11 +642,13 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
         inner_contour_fig = None
         inner_contour_mesh_fig = None
     
-    inner_mesh = inner_contour_mesh_func(img_fname)
+    inner_mesh, outer_mesh = inner_contour_mesh_func(img_fname)
     inner_mesh = comm.gather(inner_mesh, root=0)
+    outer_mesh = comm.gather(outer_mesh, root=0)
     if rank == 0:
         # Combine list of arrays into one 2D array
         inner_mesh = np.vstack(inner_mesh)
+        outer_mesh = np.vstack(outer_mesh)
 
     bb_tree = geometry.bb_tree(mesh, mesh.topology.dim)
     contour = comm.bcast(contour, root=0)
@@ -693,7 +691,7 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
     
         final_output = find_seed_end(rev_pointsy, rev_pointsz, seeds, contour)
         
-        rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits, inner_mesh, seeds, pointsy, pointsz)
+        rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits, inner_mesh, outer_mesh, seeds, pointsy, pointsz)
         print(f"[Rank {rank}] Finished streamtrace function", flush=True)
         return (
             rev_streamtrace_fig
