@@ -96,8 +96,8 @@ def create_output_directory(folder_name, rank):
     if rank == 0 and not os.path.exists(folder_name):
         os.makedirs(folder_name)
     MPI.COMM_WORLD.Barrier()
-    if rank == 0:
-        print("Accepted Inputs", flush=True)
+    # if rank == 0:
+    #     print("Accepted Inputs", flush=True)
 
 def generate_inlet_profiles(img_fname, flowrate_ratio):
     uh_1, msh_1, uh_2, msh_2 = solve_inlet_profiles(img_fname, flowrate_ratio)
@@ -105,14 +105,14 @@ def generate_inlet_profiles(img_fname, flowrate_ratio):
 
 
 def generate_mesh(img_fname, channel_mesh_size):
-    if rank == 0:
-        print('Meshing', flush = True)
+    # if rank == 0:
+    #     print('Meshing', flush = True)
     msh = meshgen(img_fname, channel_mesh_size)
     msh, _, ft = gmshio.model_to_mesh(gmsh.model, MPI.COMM_WORLD, 0, gdim=3)
     ft.name = "Facet markers"
-    if rank == 0:
-        num_elem = msh.topology.index_map(msh.topology.dim).size_global
-        print(f'Num elem: {num_elem}', flush = True)
+    # if rank == 0:
+    #     num_elem = msh.topology.index_map(msh.topology.dim).size_global
+    #     print(f'Num elem: {num_elem}', flush = True)
     return msh, ft
 
 
@@ -226,13 +226,13 @@ def solve_stokes_problem(a, L, bcs, W, Uold=None, msh=None):
         V, Q = W.sub(0).collapse()[0], W.sub(1).collapse()[0]
         U = interpolate_initial_guess(U, Uold, V, Q, msh)
 
-    if rank == 0:
-        print("Starting Linear Solve", flush=True)
+    # if rank == 0:
+    #     print("Starting Linear Solve", flush=True)
 
     U = problem.solve()
     log.set_log_level(log.LogLevel.WARNING)
-    if rank == 0:
-        print("Finished Linear Solve", flush=True)
+    # if rank == 0:
+    #     print("Finished Linear Solve", flush=True)
     return U
 
 
@@ -272,13 +272,13 @@ def define_navier_stokes_form(W, msh, Re, U_stokes=None, U_coarse=None):
     dw = ufl.TrialFunction(W)
     dF = ufl.derivative(a, w, dw)
     if U_stokes:
-        if rank == 0:
-            print("Interpolating Stokes Flow", flush=True)
+        # if rank == 0:
+        #     print("Interpolating Stokes Flow", flush=True)
         w.interpolate(U_stokes)
 
     if U_coarse:
-        if rank == 0:
-            print("Interpolating Coarse NS Flow", flush=True)
+        # if rank == 0:
+        #     print("Interpolating Coarse NS Flow", flush=True)
         V, Q = W.sub(0).collapse()[0], W.sub(1).collapse()[0]
         w = interpolate_initial_guess(w, U_coarse, V, Q, msh)
     
@@ -302,28 +302,28 @@ def solve_navier_stokes(a, w, dF, bcs, W, snes_ksp_type, comm, rank):
     snes.getKSP().setType(snes_ksp_type)
     snes.getKSP().setTolerances(rtol=1e-8)
 
-    if rank == 0:
-        print("Running SNES solver", flush = True)
+    # if rank == 0:
+    #     print("Running SNES solver", flush = True)
 
     comm.barrier()
     t_start = time.time()
-    if rank == 0:
-        print("Start Nonlinear Solve", flush=True)
+    # if rank == 0:
+    #     print("Start Nonlinear Solve", flush=True)
 
     snes.solve(None, w.x.petsc_vec)
 
     t_stop = time.time()
-    if rank == 0:
-        print(f"Num SNES iterations: {snes.getIterationNumber()}", flush=True)
-        print(f"SNES termination reason: {snes.getConvergedReason()}", flush=True)
-        print(f"Navier-Stokes solve time: {t_stop - t_start:.2f} sec", flush=True)
+    # if rank == 0:
+    #     print(f"Num SNES iterations: {snes.getIterationNumber()}", flush=True)
+    #     print(f"SNES termination reason: {snes.getConvergedReason()}", flush=True)
+    #     print(f"Navier-Stokes solve time: {t_stop - t_start:.2f} sec", flush=True)
 
     snes.destroy()
     b.destroy()
     J.destroy()
 
-    if rank == 0:
-        print("Finished Nonlinear Solve", flush=True)
+    # if rank == 0:
+    #     print("Finished Nonlinear Solve", flush=True)
 
     log.set_log_level(log.LogLevel.WARNING)
 
@@ -333,8 +333,8 @@ def solve_navier_stokes(a, w, dF, bcs, W, snes_ksp_type, comm, rank):
 
 
 def save_navier_stokes_solution(u, p, msh, FolderName, Re, comm, rank):
-    if rank == 0:
-        print(f"[Rank {rank}] Starting save_navier_stokes_solution()", flush=True)
+    # if rank == 0:
+    #     print(f"[Rank {rank}] Starting save_navier_stokes_solution()", flush=True)
 
     u.x.scatter_forward()
     p.x.scatter_forward()
@@ -358,8 +358,8 @@ def save_navier_stokes_solution(u, p, msh, FolderName, Re, comm, rank):
         u_out.name = "Velocity"
         ufile_xdmf.write_mesh(msh)
         ufile_xdmf.write_function(u_out)
-    if rank == 0:
-        print(f"[Rank {rank}] Solution writing complete.", flush=True)
+    # if rank == 0:
+    #     print(f"[Rank {rank}] Solution writing complete.", flush=True)
 
     # Barrier to synchronize all ranks before proceeding
     comm.Barrier()
@@ -422,8 +422,8 @@ def write_run_metadata(FolderName, Re, img_fname, flowrate_ratio, channel_mesh_s
             img = Image.open(img_fname)
             save_path = os.path.join(FolderName, f"{img_name}.png")
             img.save(save_path, format="PNG")
-            if rank == 0:
-                print(f"[Rank {rank}] Run metadata and image saved to {FolderName}")
+            # if rank == 0:
+            #     print(f"[Rank {rank}] Run metadata and image saved to {FolderName}")
         except Exception as e:
             if rank == 0:
                 print(f"[Rank {rank}] ERROR in write_run_metadata: {e}")

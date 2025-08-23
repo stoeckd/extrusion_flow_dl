@@ -180,10 +180,10 @@ def outer_contour_to_gmsh(contour, mesh_lc, p_idx=1, l_idx=1, loop_idx=1):
     
     
     gmsh.model.mesh.generate(2)
-    gmsh.write("outer_contour_mesh.msh")
-    gmsh.write('outer_contour.geo_unrolled')
+    # gmsh.write("outer_contour_mesh.msh")
+    # gmsh.write('outer_contour.geo_unrolled')
 
-    print(f'[Rank {rank}] Saved the outer contour mesh', flush = True)
+    # print(f'[Rank {rank}] Saved the outer contour mesh', flush = True)
  
     return gmsh.model
 
@@ -211,9 +211,9 @@ def inner_contour_to_gmsh(contour, mesh_lc):
     gmsh.model.addPhysicalGroup(1, list(range(1 , idx + 2)), name = "walls")
     gmsh.model.addPhysicalGroup(2, [1], name = "inner_surface") 
     gmsh.model.mesh.generate(2)
-    gmsh.write("inner_contour_mesh.msh")
-    gmsh.write('inner_contour.geo_unrolled')
-    print(f'[Rank {rank}] Saved the inner contour mesh', flush = True)
+    # gmsh.write("inner_contour_mesh.msh")
+    # gmsh.write('inner_contour.geo_unrolled')
+    # print(f'[Rank {rank}] Saved the inner contour mesh', flush = True)
     
     return gmsh.model
 
@@ -234,7 +234,7 @@ def image2gmsh(img_fname):
     img = load_image(img_fname)
     contours = get_contours(img)
     inner_model, outer_model, inner_shape = process_2_channel_mesh_model(contours)
-    print(f'[Rank {rank}] Finished "image2gmsh"', flush = True)
+    # print(f'[Rank {rank}] Finished "image2gmsh"', flush = True)
     return inner_model, outer_model, inner_shape
 
 def solve_velocity_field(mesh_file: str):
@@ -242,15 +242,15 @@ def solve_velocity_field(mesh_file: str):
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
-    print(f"[Rank {rank}] Initializing Gmsh and opening mesh file '{mesh_file}'", flush=True)
+    # print(f"[Rank {rank}] Initializing Gmsh and opening mesh file '{mesh_file}'", flush=True)
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 0)
     gmsh.open(mesh_file)
-    print(f"[Rank {rank}] Calling model_to_mesh()", flush=True)
+    # print(f"[Rank {rank}] Calling model_to_mesh()", flush=True)
 
     msh, cell_markers, facet_markers = gmshio.model_to_mesh(gmsh.model, comm, 0, gdim=gdim)
     gmsh.finalize()
-    print(f"[Rank {rank}] Mesh created", flush=True)
+    # print(f"[Rank {rank}] Mesh created", flush=True)
 
     V = fem.functionspace(msh, ("Lagrange", 1))
 
@@ -297,24 +297,24 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
 
     if rank == 0:
         # STEP 1: Generate Gmsh models only on rank 0
-        print("[Rank 0] Starting image2gmsh...", flush=True)
+        # print("[Rank 0] Starting image2gmsh...", flush=True)
         inner_model, outer_model, inner_shape = image2gmsh(img_fname)
 
         # Write inner contour mesh to file
         inner_model.setCurrent("inner_contour_mesh")
-        gmsh.write(inner_mesh_file)
-        print(f"[Rank 0] Wrote {inner_mesh_file}", flush=True)
+        # gmsh.write(inner_mesh_file)
+        # print(f"[Rank 0] Wrote {inner_mesh_file}", flush=True)
 
         # Write outer contour mesh to file
         outer_model.setCurrent("outer_contour_mesh")
-        gmsh.write(outer_mesh_file)
-        print(f"[Rank 0] Wrote {outer_mesh_file}", flush=True)
+        # gmsh.write(outer_mesh_file)
+        # print(f"[Rank 0] Wrote {outer_mesh_file}", flush=True)
 
     # STEP 2: Barrier to ensure files are written
     comm.Barrier()
 
     # STEP 3: Solve on all ranks using the .msh files
-    print(f"[Rank {rank}] Starting 'solve_velocity_field'", flush=True)
+    # print(f"[Rank {rank}] Starting 'solve_velocity_field'", flush=True)
     uh_1, area_1, avg_u_1, msh_1, V_1 = solve_velocity_field(inner_mesh_file)
     uh_2, area_2, avg_u_2, msh_2, V_2 = solve_velocity_field(outer_mesh_file)
 
@@ -363,7 +363,7 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
         ufile_xdmf.write_mesh(msh_2)
         ufile_xdmf.write_function(uh_2_out)
 
-    print(f"[Rank {rank}] Finished 'solve_inlet_profiles'", flush=True)
+    # print(f"[Rank {rank}] Finished 'solve_inlet_profiles'", flush=True)
     # Confirm new average velocity
     #f1 = fem.form(uh_1*ufl.dx)
     #average_velocity_1 = fem.assemble_scalar(f1)/area_1

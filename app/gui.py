@@ -12,6 +12,7 @@ import threading
 
 import sys
 import os
+import time
 # Suppress Tensorflow warnings
 #os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
@@ -297,9 +298,15 @@ class ImageProcessorApp:
 
             # If you have a CFD function to call, you'd do it here:
             img_fname = self.input_image_path  # ✅ Use stored image path
-            print(img_fname, flush=True)
+            
+            start_time = time.time()
 
             rev_streamtrace_image = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
+
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            self.queue.put(f"  Elapsed Time: {elapsed_time}\n")
 
             self.output_image_2 = rev_streamtrace_image
             self.display_image(self.output_image_2, self.output_canvas_2)

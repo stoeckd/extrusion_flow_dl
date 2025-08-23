@@ -135,8 +135,8 @@ def read_mesh_and_function(fname_base, function_name, function_dim):
 
 def update_contour(img_fname):
     # This function takes in the image filename and prepares it to be streamtraced
-    if rank == 0:
-        print('Finding Image Contour', flush = True)
+    # if rank == 0:
+    #     print('Finding Image Contour', flush = True)
     gray_img = load_image(img_fname)
     img_contours = get_contours(gray_img)
     contour, mesh_lc = optimize_contour(img_contours[1])
@@ -196,8 +196,8 @@ def inner_contour_mesh_func(img_fname):
     result = solve_inlet_profiles(img_fname, 0.5)
     inner_mesh = result[1]
     outer_mesh = result[3]
-    if rank == 0:
-        print("Made inner mesh", flush=True)
+    # if rank == 0:
+        # print("Made inner mesh", flush=True)
     inner_mesh = inner_mesh.geometry.x
     outer_mesh = outer_mesh.geometry.x
     return inner_mesh, outer_mesh
@@ -226,8 +226,8 @@ def streamtrace_pool(row, bb_tree, mesh, uh):
 
 def run_streamtrace(inner_mesh, bb_tree, mesh, uh):
     start_time = time.time()
-    if rank == 0:
-        print('Streamtracing', flush=True)
+    # if rank == 0:
+    #     print('Streamtracing', flush=True)
 
     wrapped_streamtrace = partial(streamtrace_pool, bb_tree=bb_tree, mesh=mesh, uh=uh)
     
@@ -293,8 +293,8 @@ def plot_streamtrace(pointsy, pointsz, contour, limits):
 from shapely.geometry import Polygon, MultiPolygon, GeometryCollection
 
 def expand_streamtace(pointsy, pointsz, contour):
-    if rank == 0:
-        print('Expanding edges of forward streamtrace')
+    # if rank == 0:
+    #     print('Expanding edges of forward streamtrace')
     pointsy = np.squeeze(pointsy)
     pointsz = np.squeeze(pointsz)
 
@@ -390,9 +390,9 @@ def run_reverse_streamtrace(seeds, mesh, uh):
     rank = comm.Get_rank()
     size = comm.Get_size()
 
-    if rank == 0:
-        print(f"[Rank {rank}] Building bb_tree locally", flush=True)
-        print("Reverse Streamtracing with MPI (round-robin static scheduling, rank 0 = controller only)", flush=True)
+    # if rank == 0:
+    #     print(f"[Rank {rank}] Building bb_tree locally", flush=True)
+    #     print("Reverse Streamtracing with MPI (round-robin static scheduling, rank 0 = controller only)", flush=True)
 
     # All ranks build bb_tree independently
     bb_tree = geometry.bb_tree(mesh, mesh.topology.dim)
@@ -400,7 +400,7 @@ def run_reverse_streamtrace(seeds, mesh, uh):
     # --- Serial fallback ---
     if size == 1:
         if rank == 0:
-            print("[Rank 0] Only one MPI process detected. Running in serial mode.", flush=True)
+            # print("[Rank 0] Only one MPI process detected. Running in serial mode.", flush=True)
             start_time = time.time()
 
             result_buffer = np.full((seeds.shape[0], 3), np.nan)
@@ -411,7 +411,7 @@ def run_reverse_streamtrace(seeds, mesh, uh):
                 result_buffer[i] = [x[0], y[0], z[0]]
 
             elapsed_time = time.time() - start_time
-            print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds (serial)", flush=True)
+            # print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds (serial)", flush=True)
             return result_buffer[:, 0], result_buffer[:, 1], result_buffer[:, 2]
         else:
             return None, None, None
@@ -442,13 +442,13 @@ def run_reverse_streamtrace(seeds, mesh, uh):
 
         pbar.close()
         elapsed_time = time.time() - start_time
-        print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds", flush=True)
+        # print(f"[Rank 0] Finished in {elapsed_time:.4f} seconds", flush=True)
 
         return result_buffer[:, 0], result_buffer[:, 1], result_buffer[:, 2]
 
 def plot_inlet(contour, inner_mesh, limits):
-    if comm.Get_rank() == 0:
-        print('Plotting Inlet Contour and Mesh', flush = True)
+    # if comm.Get_rank() == 0:
+    #     print('Plotting Inlet Contour and Mesh', flush = True)
     inner_contour_fig, ax = plt.subplots() 
     ax.fill(contour[:,1],contour[:,2])
     ax.set_aspect('equal')
@@ -474,8 +474,8 @@ def plot_inlet(contour, inner_mesh, limits):
     return inner_contour_fig, inner_contour_mesh_fig
 
 def parse_arguments():
-    if comm.Get_rank() == 0:
-        print(len(sys.argv), flush = True)
+    # if comm.Get_rank() == 0:
+    #     print(len(sys.argv), flush = True)
     if len(sys.argv) not in [4]:
         raise ValueError("Usage: script.py <img_fname> <solname> <funcname>")
     img_fname = sys.argv[1] # File name of input image
@@ -483,11 +483,11 @@ def parse_arguments():
     funcname = sys.argv[3] # Name of function ("Velocity" or "Pressure", etc.)
     funcdim = 3 # Dimension of solution (2 or 3)
 
-    if comm.Get_rank() == 0:
-        print("Accepted Inputs", flush = True)
+    # if comm.Get_rank() == 0:
+    #     print("Accepted Inputs", flush = True)
     num_cpus = cpu_count()
-    if comm.Get_rank() == 0:
-        print(f"Number of CPUs: {num_cpus}", flush = True)
+    # if comm.Get_rank() == 0:
+    #     print(f"Number of CPUs: {num_cpus}", flush = True)
 
     return img_fname, solname, funcname, funcdim
 
@@ -498,8 +498,8 @@ def move_directory(img_fname):
 
 def save_figs(img_fname, inner_contour_fig, inner_contour_mesh_fig, seeds, final_output, rev_streamtrace_fig, num_seeds):
     move_directory(img_fname)
-    if comm.Get_rank() == 0:
-        print('Saving Figures', flush = True)
+    # if comm.Get_rank() == 0:
+    #     print('Saving Figures', flush = True)
     inner_contour_fig.savefig("inner_contour.svg")
     inner_contour_mesh_fig.savefig("inner_mesh.svg")
     img_fname = os.path.basename(img_fname)
@@ -591,6 +591,7 @@ def find_seed_end(rev_pointsy, rev_pointsz, seeds, contour):
 
     return valid_seeds
 
+
 def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xyz_data, Re):
     """
     Performs forward and reverse stream tracing based on an image-derived inlet contour and mesh data.
@@ -629,10 +630,10 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
     # if rank == 0:
         # print(f"x range in mesh: {coords[:,0].min()} to {coords[:,0].max()}", flush=True)
 
-    if comm.Get_rank() == 0:
-        print(f"[Rank {rank}] Starting streamtrace function on {size} ranks", flush=True)
+    # if comm.Get_rank() == 0:
+    #     print(f"[Rank {rank}] Starting streamtrace function on {size} ranks", flush=True)
     if rank == 0:
-        print(f"[Rank {rank}] STEP 1: Updating contour and building bb_tree", flush=True)
+        # print(f"[Rank {rank}] STEP 1: Updating contour and building bb_tree", flush=True)
         contour = update_contour(img_fname)
         bb_tree = geometry.bb_tree(mesh, mesh.topology.dim)
     else:
@@ -657,13 +658,13 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
         # print(f"[Rank {rank}] STEP 2: Plotting inlet stuff", flush=True)
         # inner_contour_fig, inner_contour_mesh_fig = plot_inlet(contour, inner_mesh, limits)
 
-        print(f"[Rank {rank}] STEP 3: Running forward streamtrace", flush=True)
+        # print(f"[Rank {rank}] STEP 3: Running forward streamtrace", flush=True)
         pointsx, pointsy, pointsz = run_streamtrace(inner_mesh, bb_tree, mesh, uh)
 
-        print(f"[Rank {rank}] STEP 4: Expanding tracing region", flush=True)
+        # print(f"[Rank {rank}] STEP 4: Expanding tracing region", flush=True)
         minx, maxx, miny, maxy = expand_streamtace(pointsy, pointsz, contour)
 
-        print(f"[Rank {rank}] STEP 5: Generating seeds", flush=True)
+        # print(f"[Rank {rank}] STEP 5: Generating seeds", flush=True)
         seeds = make_rev_streamtrace_seeds(minx, maxx, miny, maxy, num_seeds)
 
     else:
@@ -674,31 +675,32 @@ def for_and_rev_streamtrace(num_seeds, limits, img_fname, mesh, uh, uvw_data, xy
         inner_contour_mesh_fig = None
 
     comm.Barrier()
-    if rank == 0:
-        print(f"[Rank {rank}] STEP 6: Broadcasting seeds, bb_tree, and contour", flush=True)
+    # if rank == 0:
+    #     print(f"[Rank {rank}] STEP 6: Broadcasting seeds, bb_tree, and contour", flush=True)
     seeds = comm.bcast(seeds, root=0)
     comm.Barrier()
-    if rank == 0:
-        print(f"[Rank {rank}] STEP 7: Running reverse streamtrace", flush=True)
+    # if rank == 0:
+    #     print(f"[Rank {rank}] STEP 7: Running reverse streamtrace", flush=True)
     coords = mesh.geometry.x  # Nx3 array of vertex coords
 
-    if rank == 0:
-        print(f"x range in mesh: {coords[:,0].min()} to {coords[:,0].max()}", flush=True)
+    # if rank == 0:
+    #     print(f"x range in mesh: {coords[:,0].min()} to {coords[:,0].max()}", flush=True)
     rev_pointsx, rev_pointsy, rev_pointsz = run_reverse_streamtrace(seeds, mesh, uh)
 
     if rank == 0:
-        print(f"[Rank {rank}] STEP 8: Post-processing and plotting final output", flush=True)
+        # print(f"[Rank {rank}] STEP 8: Post-processing and plotting final output", flush=True)
     
         final_output = find_seed_end(rev_pointsy, rev_pointsz, seeds, contour)
         
         rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits, inner_mesh, outer_mesh, seeds, pointsy, pointsz)
-        print(f"[Rank {rank}] Finished streamtrace function", flush=True)
+        # print(f"[Rank {rank}] Finished streamtrace function", flush=True)
         return (
             rev_streamtrace_fig
         )
     else:
         print(f"[Rank {rank}] Finished streamtrace function (no output to return)", flush=True)
         return None
+
 
 def main():
     limits = 0.5
@@ -724,6 +726,7 @@ def main():
     # plot_streamtrace(rev_pointsy, rev_pointsz, contour, limits)
     rev_streamtrace_fig = plot_rev_streamtrace(final_output, limits)
     save_figs(img_fname, inner_contour_fig, inner_contour_mesh_fig, seeds, final_output, rev_streamtrace_fig, num_seeds)
+
 
 if __name__ == "__main__":
     main()
