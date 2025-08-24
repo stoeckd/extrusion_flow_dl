@@ -21,7 +21,7 @@ os.environ.setdefault("TF_NUM_INTRAOP_THREADS", "1")
 os.environ.setdefault("TF_NUM_INTEROP_THREADS", "1")
 os.environ.setdefault("TF_CPP_MIN_LOG_LEVEL", "2")
 
-from run_flownet_fenicsx import (
+from run_dl_model import (
     load_flownet_model,
     process_image_channels,           # (unused now; kept if you want it)
     create_2ch_test_data_from_img,
@@ -42,7 +42,7 @@ def _fem_only_job(img_gray_np, flowrate_ratio, u_max):
     os.environ.setdefault("MKL_NUM_THREADS", "1")
     os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
 
-    import run_flownet_fenicsx as api  # heavy stuff imported only in worker
+    import run_dl_model as api  # heavy stuff imported only in worker
     inner_model, outer_model, inner_shape = api.image2gmshfromimg(img_gray_np)
     flow_profile, inner_shape = api.solve_inlet_profiles(
         inner_model, outer_model, inner_shape, flowrate_ratio, u_max
