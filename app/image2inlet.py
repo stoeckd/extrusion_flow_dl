@@ -338,30 +338,30 @@ def solve_inlet_profiles(img_fname, flowrate_ratio):
     uh_2.x.array[:] *= flow_u_2
 
     # Save original arrays for debugging
-    uh_1.x.scatter_forward()
-    uh_2.x.scatter_forward()
+    # uh_1.x.scatter_forward()
+    # uh_2.x.scatter_forward()
 
-    P4 = VectorElement("Lagrange", msh_1.basix_cell(), 1)
-    # P4 = VectorElement("Lagrange", msh_1.basix_cell(), 1, shape=(msh_1.geometry.dim,))
-    uh_1_out = Function(functionspace(msh_1, P4))
-    uh_1_out.interpolate(uh_1)
+    # P4 = VectorElement("Lagrange", msh_1.basix_cell(), 1)
+    # # P4 = VectorElement("Lagrange", msh_1.basix_cell(), 1, shape=(msh_1.geometry.dim,))
+    # uh_1_out = Function(functionspace(msh_1, P4))
+    # uh_1_out.interpolate(uh_1)
 
-    from dolfinx.io import XDMFFile
+    # from dolfinx.io import XDMFFile
 
-    with XDMFFile(comm, "uh_1_inlet_profile_vel.xdmf", "w") as ufile_xdmf:
-        uh_1_out.name = "uh_1_Velocity"
-        ufile_xdmf.write_mesh(msh_1)
-        ufile_xdmf.write_function(uh_1_out)
+    # with XDMFFile(comm, "uh_1_inlet_profile_vel.xdmf", "w") as ufile_xdmf:
+    #     uh_1_out.name = "uh_1_Velocity"
+    #     ufile_xdmf.write_mesh(msh_1)
+    #     ufile_xdmf.write_function(uh_1_out)
 
-    P5 = VectorElement("Lagrange", msh_2.basix_cell(), 1)
-    # P5 = VectorElement("Lagrange", msh_2.basix_cell(), 1, shape=(msh_1.geometry.dim,))
-    uh_2_out = Function(functionspace(msh_2, P5))
-    uh_2_out.interpolate(uh_2)
+    # P5 = VectorElement("Lagrange", msh_2.basix_cell(), 1)
+    # # P5 = VectorElement("Lagrange", msh_2.basix_cell(), 1, shape=(msh_1.geometry.dim,))
+    # uh_2_out = Function(functionspace(msh_2, P5))
+    # uh_2_out.interpolate(uh_2)
 
-    with XDMFFile(comm, "uh_2_inlet_profile_vel.xdmf", "w") as ufile_xdmf:
-        uh_2_out.name = "uh_2_Velocity"
-        ufile_xdmf.write_mesh(msh_2)
-        ufile_xdmf.write_function(uh_2_out)
+    # with XDMFFile(comm, "uh_2_inlet_profile_vel.xdmf", "w") as ufile_xdmf:
+    #     uh_2_out.name = "uh_2_Velocity"
+    #     ufile_xdmf.write_mesh(msh_2)
+    #     ufile_xdmf.write_function(uh_2_out)
 
     # print(f"[Rank {rank}] Finished 'solve_inlet_profiles'", flush=True)
     # Confirm new average velocity
