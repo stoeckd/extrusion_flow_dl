@@ -140,7 +140,7 @@ def optimize_contour(contour):
 def outer_contour_to_gmsh(contour, mesh_lc, p_idx=1, l_idx=1, loop_idx=1):
     import gmsh
     '''
-    Converge outer wall contour to mesh for outer flow
+    Convert outer wall contour to mesh for outer flow
     '''
     #print('Running outer_contour_to_gmsh')
     line_init = l_idx
@@ -389,6 +389,7 @@ def solve_inlet_profiles(inner_model, outer_model, inner_shape, flowrate_ratio, 
         normalize_factor = local_max_u
 
     grid /= normalize_factor
+
     flow_profile = grid.astype(np.float32)
 
     t_stop = time.perf_counter()
