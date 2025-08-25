@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import numpy as np
+from ViscousFlowSolver import CFD_solver_and_streamtrace
 
 import multiprocessing
 import queue
@@ -11,6 +12,10 @@ import threading
 from concurrent.futures import ProcessPoolExecutor
 import sys
 import os
+import time
+# Suppress Tensorflow warnings
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
+
 
 # Keep math/TF threads polite in the GUI proc (optional but nice)
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -57,9 +62,10 @@ nx, ny = 300, 300
 class ImageProcessorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Image Processor")
+        self.root.title("Extrusion Flow Prediction")
 
         self.queue = queue.Queue()
+        self.input_image_path = None  # Will store the image file path
 
         # Configure grid layout for four quadrants
         self.root.rowconfigure([0, 1], weight=1, minsize=ny)
@@ -152,6 +158,7 @@ class ImageProcessorApp:
         )
         self.process_button_1.pack(pady=5)
 
+
         self.output_canvas_1 = tk.Canvas(self.output_frame_1, bg="gray",
                                          width=nx, height=ny, highlightthickness=0)
         self.output_canvas_1.pack()
@@ -170,10 +177,11 @@ class ImageProcessorApp:
         self.output_label_2.pack(pady=5)
 
         self.process_button_2 = tk.Button(
-            self.output_frame_2, text='Run CFD Model',
-            command=lambda: self.run_in_thread(2),
-            state='disabled'
-        )
+                self.output_frame_2, text='Run CFD Model', command=lambda:
+                self.run_in_thread(2),
+                state='normal'
+                )
+
         self.process_button_2.pack(pady=5)
 
         self.output_canvas_2 = tk.Canvas(self.output_frame_2, bg="gray",
@@ -185,7 +193,32 @@ class ImageProcessorApp:
         )
         self.save_button_2.pack(pady=5)
 
-    # --- logging redirection ---
+        # Mesh size input
+        form = tk.Frame(self.output_frame_2)
+        form.pack(pady=6)
+
+        # Mesh size
+        tk.Label(form, text="Mesh Size:").grid(row=0, column=0, sticky="e", padx=(0, 6), pady=2)
+        self.mesh_entry = tk.Entry(form, width=10)
+        self.mesh_entry.insert(0, "0.05")
+        self.mesh_entry.grid(row=0, column=1, sticky="w", pady=2)
+
+        # Reynolds number
+        tk.Label(form, text="Reynolds Number (1–10):").grid(row=1, column=0, sticky="e", padx=(0, 6), pady=2)
+        self.re_entry = tk.Entry(form, width=10)
+        self.re_entry.insert(0, "1")
+        self.re_entry.grid(row=1, column=1, sticky="w", pady=2)
+
+        # Streamtrace seeds
+        tk.Label(form, text="Streamtrace Seeds (10–400):").grid(row=2, column=0, sticky="e", padx=(0, 6), pady=2)
+        self.seeds_entry = tk.Entry(form, width=10)
+        self.seeds_entry.insert(0, "25")
+        self.seeds_entry.grid(row=2, column=1, sticky="w", pady=2)
+
+        # Optional: let the entry column stretch a bit if the parent grows
+        form.grid_columnconfigure(0, weight=0)
+        form.grid_columnconfigure(1, weight=1)
+
     def write(self, message):
         self.message_area.config(state="normal")
         self.message_area.insert("end", message)
@@ -216,9 +249,11 @@ class ImageProcessorApp:
     def load_image(self):
         file_path = filedialog.askopenfilename(title="Select an Image File")
         if file_path:
-            img = Image.open(file_path)
-            img = self.make_square_by_mirroring(img, tol_ratio=0.02)
-            self.input_image = img
+            self.input_image_path = file_path
+            self.input_image = Image.open(file_path)
+            #img = Image.open(file_path)
+            #img = self.make_square_by_mirroring(img, tol_ratio=0.02)
+            #self.input_image = img
             self.display_image(self.input_image, self.input_canvas)
 
     def display_image(self, image, canvas):
@@ -236,7 +271,8 @@ class ImageProcessorApp:
         if variant == 1:
             self.root.after(0, self.process_flownet)  # U-Net pipeline (FEM in worker)
         else:
-            pass  # CFD button currently disabled
+            # Variant 2 is the CFD model
+            self.root.after(0, self.process_cfd_model, variant)
 
     # --- main pipeline: FEM in short-lived worker, TF in GUI ---
     def process_flownet(self, _variant_ignored=None):
@@ -269,7 +305,51 @@ class ImageProcessorApp:
         except Exception as e:
             self.queue.put(f'Error occured:\n{e}\n')
 
-    # --- queue pump ---
+    def process_cfd_model(self, variant):
+        if not self.input_image:
+            messagebox.showerror("Error", "No input image loaded!")
+            return
+
+        try:
+            mesh_size = float(self.mesh_entry.get())
+            Reynolds_number = int(self.re_entry.get())
+            num_seeds = int(self.seeds_entry.get())
+            inner_flow = float(self.flowrate_entry_left.get())
+            outer_flow = float(self.flowrate_entry_right.get())
+            flowrate_ratio = float(inner_flow / (inner_flow + outer_flow))  # Compute the ratio
+
+            if not (1 <= Reynolds_number <= 10):
+                raise ValueError("Reynolds number must be between 1 and 10.")
+            if not (10 <= num_seeds <= 400):
+                raise ValueError("Streamtrace seeds must be between 10 and 400.")
+            if not (0.001 <= mesh_size <= 0.1):
+                raise ValueError("Mesh size must be between 0.001 and 0.1.")
+
+            # Send values to the display window
+            self.queue.put(f"Running CFD Model...\n")
+            self.queue.put(f"  Mesh Size: {mesh_size}\n")
+            self.queue.put(f"  Reynolds number set to: {Reynolds_number}\n")
+            self.queue.put(f"  Streamtrace Seeds: {num_seeds}\n")
+            self.queue.put(f"  Flowrate Ratio: {flowrate_ratio}\n")
+
+            # If you have a CFD function to call, you'd do it here:
+            img_fname = self.input_image_path  # ✅ Use stored image path
+            
+            start_time = time.time()
+
+            rev_streamtrace_image = CFD_solver_and_streamtrace(Reynolds_number, img_fname, mesh_size, flowrate_ratio, num_seeds)
+
+            end_time = time.time()
+            elapsed_time = end_time - start_time
+
+            self.queue.put(f"  Elapsed Time: {elapsed_time}\n")
+
+            self.output_image_2 = rev_streamtrace_image
+            self.display_image(self.output_image_2, self.output_canvas_2)
+
+        except ValueError as e:
+            self.queue.put(f"Error in CFD input:\n{e}\n")
+
     def process_queue(self):
         while not self.queue.empty():
             message = self.queue.get_nowait()
@@ -295,12 +375,25 @@ class ImageProcessorApp:
             if file_path:
                 image.save(file_path)
         except ValueError as e:
+  
             messagebox.showerror("Input Error", f"{e}")
 
+width = 720
+height = 900
+def center_window(root, w, h):
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+
+    x = (screen_w/2) - (w/2)
+    y = (screen_h/2) - (h/2)
+
+    window_geo = f'{w:.0f}x{h:.0f}+{x:.0f}+{y:.0f}'
+
+    root.geometry(window_geo)
 
 if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     root = tk.Tk()
     app = ImageProcessorApp(root)
+    center_window(root, width, height)
     root.mainloop()
-

@@ -10,6 +10,6 @@ The app requires FEniCSx v0.9, Tensorflow (>2.18), and a number of Python librar
 ```
 conda create -n fenicsx_tf_env python=3.12
 conda activate fenicsx_tf_env
-conda install -c conda-forge fenics-dolfinx mpich pyvista
-pip install gmsh scipy scikit-image rdp shapely tensorflow 
+conda install -c conda-forge fenics-dolfinx mpich pyvista adios4dolfinx
+pip install gmsh scipy scikit-image rdp shapely tensorflow alphashape descartes
 ```
