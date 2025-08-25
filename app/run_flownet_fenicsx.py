@@ -164,7 +164,7 @@ def optimize_contour(contour):
 
 def outer_contour_to_gmsh(contour, mesh_lc, p_idx=1, l_idx=1, loop_idx=1):
     '''
-    Converge outer wall contour to mesh for outer flow
+    Convert outer wall contour to mesh for outer flow
     '''
     #print('Running outer_contour_to_gmsh')
     line_init = l_idx
@@ -402,8 +402,8 @@ def solve_inlet_profiles(inner_model, outer_model, inner_shape, flowrate_ratio, 
         normalize_factor = local_max_u
 
     grid /= normalize_factor
-    grid *= 255
-    flow_profile = grid.astype(np.uint8)
+    #grid *= 255
+    flow_profile = grid.astype(np.float32)
 
     t_stop = time.perf_counter()
     interpolate_time = t_stop - t_start
@@ -425,7 +425,7 @@ def load_normalize_factor():
         if getattr(sys, "frozen", False)
         else os.path.join(os.path.dirname(__file__), fname)
         )
-    u_max = np.load(fname)['arr_0'].item()
+    u_max = np.load(lib_fname)['arr_0'].item()
     return u_max
 
 def create_inner_shape(contour_points):
@@ -446,7 +446,7 @@ def create_inner_shape(contour_points):
     x = np.linspace(x_min, x_max, nx)
     y = np.linspace(y_min, y_max, ny)
 
-    grid = np.zeros((nx,ny), dtype=np.uint8)
+    grid = np.zeros((nx,ny), dtype=float)
 
     #f = open(shape_filename, 'w')
     for j in range(0, ny):
@@ -454,7 +454,7 @@ def create_inner_shape(contour_points):
             point = Point(x[i], y[j])
 
             if polygon.contains(point):
-                grid[i,j] = 255
+                grid[i,j] = 1
                 #f.write('1\n')
             else:
                 grid[i,j] = 0
@@ -494,7 +494,7 @@ def create_inner_shape2(contour_points):
 
     # Vectorized containment check
     #mask = np.array([polygon.contains(Point(x, y)) for x, y in grid_points])
-    inner_shape_mask = 255 * contains(polygon, xx, yy).T
+    inner_shape_mask = contains(polygon, xx, yy).T
 
     '''
     img = convert_binary_to_color(grid)
@@ -534,7 +534,7 @@ def create_2ch_test_data_from_img(ch1_img, ch2_img, h, w):
     Convert inlet velocity field and inner shape into tensorflow-compatible
     2-channel image
     '''
-    X_test = np.zeros((1, h, w, 2), dtype=np.uint8)
+    X_test = np.zeros((1, h, w, 2), dtype=np.float32)
 
     ch1_img = ch1_img.reshape((ch1_img.shape[0], ch1_img.shape[1], 1))
     ch1_img = sk.transform.resize(ch1_img, (h, w), mode='constant', preserve_range=True)

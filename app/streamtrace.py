@@ -706,6 +706,10 @@ def main():
     limits = 0.5
     num_seeds = 50
 
+    # img_name: name of resulting outlet flow shape
+    # solname: name of 3D velocity field (.xdmf file)
+    # funcname: name of function in xdmf file ("Velocity")
+    # funcdim: dimension of velocity field (not an argument -- default value in function)
     img_fname, solname, funcname, funcdim = parse_arguments()
     contour = update_contour(img_fname)
 
