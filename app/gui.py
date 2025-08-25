@@ -27,7 +27,7 @@ nx, ny = 300, 300
 class ImageProcessorApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Image Processor")
+        self.root.title("Extrusion Flow Prediction")
 
         self.queue = queue.Queue()
         self.input_image_path = None  # Will store the image file path
@@ -173,25 +173,31 @@ class ImageProcessorApp:
         self.save_button_2.pack(pady=5)
 
         # Mesh size input
-        self.mesh_label = tk.Label(self.output_frame_2, text="Mesh Size:")
-        self.mesh_label.pack()
-        self.mesh_entry = tk.Entry(self.output_frame_2, width=10)
-        self.mesh_entry.insert(0, "0.05")  # Default mesh size
-        self.mesh_entry.pack()
+        form = tk.Frame(self.output_frame_2)
+        form.pack(pady=6)
 
-        # Reynolds number input
-        self.re_label = tk.Label(self.output_frame_2, text="Reynolds Number (1-10):")
-        self.re_label.pack()
-        self.re_entry = tk.Entry(self.output_frame_2, width=10)
-        self.re_entry.insert(0, "1")  # Default Reynolds number
-        self.re_entry.pack()
+        # Mesh size
+        tk.Label(form, text="Mesh Size:").grid(row=0, column=0, sticky="e", padx=(0, 6), pady=2)
+        self.mesh_entry = tk.Entry(form, width=10)
+        self.mesh_entry.insert(0, "0.05")
+        self.mesh_entry.grid(row=0, column=1, sticky="w", pady=2)
 
-        # Streamtrace seeds input
-        self.seeds_label = tk.Label(self.output_frame_2, text="Streamtrace Seeds (10-400):")
-        self.seeds_label.pack()
-        self.seeds_entry = tk.Entry(self.output_frame_2, width=10)
-        self.seeds_entry.insert(0, "25")  # Default seeds
-        self.seeds_entry.pack()
+        # Reynolds number
+        tk.Label(form, text="Reynolds Number (1–10):").grid(row=1, column=0, sticky="e", padx=(0, 6), pady=2)
+        self.re_entry = tk.Entry(form, width=10)
+        self.re_entry.insert(0, "1")
+        self.re_entry.grid(row=1, column=1, sticky="w", pady=2)
+
+        # Streamtrace seeds
+        tk.Label(form, text="Streamtrace Seeds (10–400):").grid(row=2, column=0, sticky="e", padx=(0, 6), pady=2)
+        self.seeds_entry = tk.Entry(form, width=10)
+        self.seeds_entry.insert(0, "25")
+        self.seeds_entry.grid(row=2, column=1, sticky="w", pady=2)
+
+        # Optional: let the entry column stretch a bit if the parent grows
+        form.grid_columnconfigure(0, weight=0)
+        form.grid_columnconfigure(1, weight=1)
+
 
     def write(self, message):
         # Write to the message area
@@ -341,11 +347,25 @@ class ImageProcessorApp:
             if file_path:
                 image.save(file_path)
         except ValueError as e:
+  
             messagebox.showerror("Input Error", f"{e}")
 
+width = 720
+height = 900
+def center_window(root, w, h):
+    screen_w = root.winfo_screenwidth()
+    screen_h = root.winfo_screenheight()
+
+    x = (screen_w/2) - (w/2)
+    y = (screen_h/2) - (h/2)
+
+    window_geo = f'{w:.0f}x{h:.0f}+{x:.0f}+{y:.0f}'
+
+    root.geometry(window_geo)
 
 if __name__ == "__main__":
     multiprocessing.set_start_method('spawn')
     root = tk.Tk()
     app = ImageProcessorApp(root)
+    center_window(root, width, height)
     root.mainloop()
