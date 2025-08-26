@@ -181,7 +181,7 @@ def outer_contour_to_gmsh(contour, mesh_lc, p_idx=1, l_idx=1, loop_idx=1):
     
     gmsh.model.mesh.generate(2)
     gmsh.write("outer_contour_mesh.msh")
-    gmsh.write('outer_contour.geo_unrolled')
+    # gmsh.write('outer_contour.geo_unrolled')
 
     # print(f'[Rank {rank}] Saved the outer contour mesh', flush = True)
  
@@ -212,7 +212,7 @@ def inner_contour_to_gmsh(contour, mesh_lc):
     gmsh.model.addPhysicalGroup(2, [1], name = "inner_surface") 
     gmsh.model.mesh.generate(2)
     gmsh.write("inner_contour_mesh.msh")
-    gmsh.write('inner_contour.geo_unrolled')
+    # gmsh.write('inner_contour.geo_unrolled')
     # print(f'[Rank {rank}] Saved the inner contour mesh', flush = True)
     
     return gmsh.model

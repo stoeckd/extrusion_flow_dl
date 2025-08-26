@@ -6,43 +6,16 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import time
 t_start = time.perf_counter()
-import gmsh
 import numpy as np
-from scipy.interpolate import griddata
 from PIL import Image
 
 from skimage import io
 import skimage as sk
-import scipy.ndimage as ndimage
-import math
-from rdp import rdp
-
-# fenicsx solver
-from dolfinx import fem
-from dolfinx.io import gmshio
-from dolfinx.fem.petsc import LinearProblem
-from petsc4py import PETSc
-import ufl
-
-from dolfinx.io import gmshio
-from dolfinx.fem.petsc import LinearProblem
-from mpi4py import MPI
-
 import sys
 
-# Visualization
-import pyvista
-from dolfinx.plot import vtk_mesh
+# at top of module keep only: os, sys, time, numpy, PIL, skimage
 
-# Inlet processing
-from shapely.geometry import Point
-from shapely.geometry.polygon import Polygon
-from shapely.vectorized import contains
 
-# Tensorflow
-import tensorflow as tf
-from tensorflow.keras.models import Model, load_model
-tf.keras.config.enable_unsafe_deserialization()
 
 t_stop = time.perf_counter()
 #print(f'Imports complete in {t_stop - t_start:.4f} seconds')
@@ -71,6 +44,7 @@ def load_image(img_fname):
     return gray_img
 
 def get_contours(gray_img):
+    import scipy.ndimage as ndimage
     '''
     Extract contours from image for mesh generation
     '''
@@ -112,6 +86,7 @@ def get_contours(gray_img):
 
 
 def optimize_contour(contour):
+    from rdp import rdp
     '''
     Reduce number of points in contour but maintain overall shape
     '''
@@ -163,8 +138,9 @@ def optimize_contour(contour):
     return [contour, mesh_lc]
 
 def outer_contour_to_gmsh(contour, mesh_lc, p_idx=1, l_idx=1, loop_idx=1):
+    import gmsh
     '''
-    Converge outer wall contour to mesh for outer flow
+    Convert outer wall contour to mesh for outer flow
     '''
     #print('Running outer_contour_to_gmsh')
     line_init = l_idx
@@ -212,6 +188,7 @@ def outer_contour_to_gmsh(contour, mesh_lc, p_idx=1, l_idx=1, loop_idx=1):
 
 
 def inner_contour_to_gmsh(contour, mesh_lc):
+    import gmsh
     '''
     Converge inner wall contour to mesh for outer flow
     '''
@@ -280,6 +257,12 @@ def image2gmshfromfile(img_fname):
     return inner_model, outer_model, inner_shape
 
 def solve_velocity_field(gmsh_model):
+    from dolfinx import fem
+    from dolfinx.io import gmshio
+    from dolfinx.fem.petsc import LinearProblem
+    from petsc4py import PETSc
+    from mpi4py import MPI
+    import ufl
     '''
     Given a gmsh model for an inlet flow field, solve diffusion equation
     to model a fully developed inlet flow field
@@ -333,6 +316,10 @@ def solve_velocity_field(gmsh_model):
     return uh, area, average_velocity, domain, V
 
 def solve_inlet_profiles(inner_model, outer_model, inner_shape, flowrate_ratio, normalize_factor=1.0):
+    from scipy.interpolate import griddata
+    from dolfinx import fem
+    import ufl
+
     '''
     Given an image of nozzle geometry and a flowrate ratio,
     solve both inner and outer flow profiles
@@ -402,8 +389,8 @@ def solve_inlet_profiles(inner_model, outer_model, inner_shape, flowrate_ratio, 
         normalize_factor = local_max_u
 
     grid /= normalize_factor
-    grid *= 255
-    flow_profile = grid.astype(np.uint8)
+
+    flow_profile = grid.astype(np.float32)
 
     t_stop = time.perf_counter()
     interpolate_time = t_stop - t_start
@@ -425,10 +412,12 @@ def load_normalize_factor():
         if getattr(sys, "frozen", False)
         else os.path.join(os.path.dirname(__file__), fname)
         )
-    u_max = np.load(fname)['arr_0'].item()
+    u_max = np.load(lib_fname)['arr_0'].item()
     return u_max
 
 def create_inner_shape(contour_points):
+    from shapely.geometry import Polygon, Point
+    from shapely.vectorized import contains  # for create_inner_shape2
     '''
     Form inlet inner flow shape based on inner contour
     '''
@@ -446,7 +435,7 @@ def create_inner_shape(contour_points):
     x = np.linspace(x_min, x_max, nx)
     y = np.linspace(y_min, y_max, ny)
 
-    grid = np.zeros((nx,ny), dtype=np.uint8)
+    grid = np.zeros((nx,ny), dtype=float)
 
     #f = open(shape_filename, 'w')
     for j in range(0, ny):
@@ -454,7 +443,7 @@ def create_inner_shape(contour_points):
             point = Point(x[i], y[j])
 
             if polygon.contains(point):
-                grid[i,j] = 255
+                grid[i,j] = 1
                 #f.write('1\n')
             else:
                 grid[i,j] = 0
@@ -470,6 +459,8 @@ def create_inner_shape(contour_points):
     return grid
 
 def create_inner_shape2(contour_points):
+    from shapely.geometry import Polygon, Point
+    from shapely.vectorized import contains  # for create_inner_shape2
     '''
     Form inlet inner flow shape based on inner contour
     '''
@@ -494,7 +485,7 @@ def create_inner_shape2(contour_points):
 
     # Vectorized containment check
     #mask = np.array([polygon.contains(Point(x, y)) for x, y in grid_points])
-    inner_shape_mask = 255 * contains(polygon, xx, yy).T
+    inner_shape_mask = contains(polygon, xx, yy).T
 
     '''
     img = convert_binary_to_color(grid)
@@ -510,6 +501,8 @@ def create_inner_shape2(contour_points):
     return inner_shape_mask
 
 def load_flownet_model():
+    import tensorflow as tf
+    from tensorflow.keras.models import load_model
     '''
     Locate and load flownet model
     '''
@@ -534,7 +527,7 @@ def create_2ch_test_data_from_img(ch1_img, ch2_img, h, w):
     Convert inlet velocity field and inner shape into tensorflow-compatible
     2-channel image
     '''
-    X_test = np.zeros((1, h, w, 2), dtype=np.uint8)
+    X_test = np.zeros((1, h, w, 2), dtype=np.float32)
 
     ch1_img = ch1_img.reshape((ch1_img.shape[0], ch1_img.shape[1], 1))
     ch1_img = sk.transform.resize(ch1_img, (h, w), mode='constant', preserve_range=True)
@@ -549,6 +542,7 @@ def create_2ch_test_data_from_img(ch1_img, ch2_img, h, w):
     return X_test
 
 def run_flownet_cpu(X_test):
+    import tensorflow as tf
     '''
     Predict outlet flow using CPU, loading the model each time
     '''
@@ -563,6 +557,7 @@ def run_flownet_cpu(X_test):
     return pred_mask
 
 def run_flownet_cpu_preload_model(flownet_model, X_test):
+    import tensorflow as tf
     '''
     Given a pre-loaded flownet model, predict outlet flow
     '''
@@ -724,6 +719,8 @@ if __name__ == '__main__':
     #run_job(img_fname, flowrate_ratio, img_pred_fname)
 
     img_out = run_job_preload_model_preload_img(flownet_model, img, flowrate_ratio, img_pred_fname)
+
+    img_out.save(img_pred_fname)
 
 
 

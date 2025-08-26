@@ -522,7 +522,7 @@ def image2gmsh3D(img_fname, mesh_lc_3D, x_outlet, x_extrude, save=False):
 
         if save:
                 gmsh.write('ChannelMesh.msh')
-                gmsh.write("ChannelMesh.geo_unrolled")
+                #gmsh.write("ChannelMesh.geo_unrolled")
                 # ^ Python's gmsh API doesn't natively save .geo files, but .geo_unrolled files
                 # are essentially the same as a .geo file. Just need to rename the file to 
                 # mesh_test.geo, and you can open it in gmsh.
