@@ -13,3 +13,11 @@ conda activate fenicsx_tf_env
 conda install -c conda-forge fenics-dolfinx mpich pyvista adios4dolfinx
 pip install gmsh scipy scikit-image rdp shapely tensorflow alphashape descartes
 ```
+
+The DL and CFD models are most easily accessed vai the graphical user interface (GUI):
+
+```
+python app/gui.py
+```
+
+The GUI-based CFD model is currently single-threaded.
